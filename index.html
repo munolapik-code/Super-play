@@ -118,7 +118,7 @@
             color: #F5F5F5;
         }
 
-        /* Кнопка Играть внизу карточки */
+        /* Кнопка Играть внизу карточки (Синяя для всех игр) */
         .play-btn {
             background-color: #0084FF;
             color: #FFFFFF;
@@ -135,14 +135,6 @@
 
         .play-btn:hover {
             background-color: #006ED5;
-        }
-
-        /* Кнопка для второй игры */
-        .play-btn.prison-btn {
-            background-color: #e74c3c;
-        }
-        .play-btn.prison-btn:hover {
-            background-color: #c0392b;
         }
 
         /* --- 2. ЭКРАН ИГРЫ --- */
@@ -224,7 +216,7 @@
         .jump-btn {
             width: 85px;
             height: 85px;
-            background: rgba(0, 132, 255, 0.7);
+            background: rgba(0, 132, 255, 0.7); /* Синий цвет прыжка по умолчанию */
             border: 2px solid #FFFFFF;
             border-radius: 50%;
             color: white;
@@ -263,7 +255,7 @@
                 </div>
                 <div class="game-info">
                     <h3 class="game-title">Побег из тюрьмы</h3>
-                    <button class="play-btn prison-btn" id="startPrisonBtn">Играть</button>
+                    <button class="play-btn" id="startPrisonBtn">Играть</button>
                 </div>
             </div>
         </div>
@@ -347,9 +339,6 @@
             player2D.y = groundY - player2D.height;
             player2D.vx = 0;
             player2D.vy = 0;
-            
-            // Сброс цвета кнопки под прыжок первой игры
-            jumpBtn.style.background = "rgba(0, 132, 255, 0.7)";
         }
 
         function updateCubeGame() {
@@ -386,7 +375,7 @@
             ctx2D.fillStyle = '#2ed573';
             ctx2D.fillRect(0, groundY, canvas2D.width, canvas2D.height - groundY);
 
-            // Кубик
+            // Kuбик
             ctx2D.fillStyle = '#FF5733';
             ctx2D.fillRect(player2D.x, player2D.y, player2D.width, player2D.height);
 
@@ -453,9 +442,6 @@
                 create3DPlatform(nextX, nextY, nextZ, 2.5, 2.5, mat);
                 nextZ -= 7;
             }
-
-            // Цвет кнопки прыжка под стиль тюрьмы
-            jumpBtn.style.background = "rgba(231, 76, 60, 0.8)";
         }
 
         function create3DPlatform(x, y, z, w, l, material) {
@@ -531,12 +517,10 @@
         // ==========================================
         window.addEventListener('keydown', (e) => {
             if (!gameActive) return;
-            // Управление для 2D кубика
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
             if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') keys.jump = true;
 
-            // Доп. клавиши ходьбы вперед-назад для 3D тюрьмы
             if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = true;
             if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.backward = true;
         });
@@ -572,16 +556,13 @@
                 moveY = (diffY / dist) * maxDist;
             }
 
-            // Визуальное смещение стика джойстика
             stick.style.transform = `translate(${moveX}px, ${moveY}px)`;
 
             if (currentGameMode === 'cube') {
-                // Логика влево-вправо для 2D игры
                 if (moveX > 8) { keys.right = true; keys.left = false; }
                 else if (moveX < -8) { keys.left = true; keys.right = false; }
                 else { keys.left = false; keys.right = false; }
             } else if (currentGameMode === 'prison') {
-                // Свободный вектор движения для 3D паркура
                 touchMoveX = moveX / maxDist;
                 touchMoveZ = moveY / maxDist;
             }
@@ -645,9 +626,8 @@
             cancelAnimationFrame(loopId);
             gameScreen.style.display = 'none';
             lobbyScreen.style.display = 'flex';
-            canvasContainer.innerHTML = ''; // Очистка памяти
+            canvasContainer.innerHTML = ''; 
             
-            // Сброс всех нажатых кнопок
             for (let k in keys) keys[k] = false;
             joystickActive = false;
             stick.style.transform = 'translate(0px, 0px)';
