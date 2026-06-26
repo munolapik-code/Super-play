@@ -15,7 +15,7 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: #121416; /* Красивый глубокий темный фон */
+            background-color: #121416;
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             color: #FFFFFF;
             overflow: hidden;
@@ -33,7 +33,6 @@
             overflow-y: auto;
         }
 
-        /* Верхняя панель */
         .lobby-header {
             font-size: 28px;
             font-weight: 800;
@@ -46,7 +45,6 @@
             color: #0084FF;
         }
 
-        /* Сетка для карточек игр */
         .games-grid {
             display: flex;
             flex-wrap: wrap;
@@ -54,7 +52,6 @@
             justify-content: flex-start;
         }
 
-        /* Карточка одной игры */
         .game-card {
             background-color: #1C1E22;
             border: 1px solid #2D3035;
@@ -72,7 +69,6 @@
             border-color: #0084FF;
         }
 
-        /* Картинка-превью внутри карточки */
         .game-preview {
             height: 150px;
             background: linear-gradient(135deg, #FF5733 0%, #900C3F 100%);
@@ -82,12 +78,10 @@
             position: relative;
         }
 
-        /* Превью для второй игры (сине-фиолетовый градиент тюрьмы) */
         .game-preview.prison {
             background: linear-gradient(135deg, #2c3e50 0%, #000000 100%);
         }
 
-        /* Маленький декоративный кубик на превью */
         .preview-cube {
             width: 45px;
             height: 45px;
@@ -96,13 +90,11 @@
             box-shadow: 0 8px 15px rgba(0,0,0,0.2);
         }
 
-        /* Декоративная решетка для превью тюрьмы */
         .preview-bars {
             font-size: 50px;
             color: rgba(255, 255, 255, 0.2);
         }
 
-        /* Инфо внутри карточки */
         .game-info {
             padding: 15px;
             display: flex;
@@ -118,7 +110,6 @@
             color: #F5F5F5;
         }
 
-        /* Кнопка Играть внизу карточки (Синяя для всех игр) */
         .play-btn {
             background-color: #0084FF;
             color: #FFFFFF;
@@ -139,7 +130,7 @@
 
         /* --- 2. ЭКРАН ИГРЫ --- */
         #game-screen {
-            display: none; /* Изначально скрыт */
+            display: none;
             width: 100%;
             height: 100%;
             position: relative;
@@ -151,7 +142,6 @@
             height: 100%;
         }
 
-        /* Кнопка-дверька для выхода в углу экрана */
         .exit-door-btn {
             position: absolute;
             top: 20px;
@@ -176,7 +166,6 @@
             transform: scale(1.05);
         }
 
-        /* Кнопки управления для телефонов */
         #controls {
             position: absolute;
             bottom: 30px;
@@ -216,7 +205,7 @@
         .jump-btn {
             width: 85px;
             height: 85px;
-            background: rgba(0, 132, 255, 0.7); /* Синий цвет прыжка по умолчанию */
+            background: rgba(0, 132, 255, 0.7);
             border: 2px solid #FFFFFF;
             border-radius: 50%;
             color: white;
@@ -233,12 +222,14 @@
 </head>
 <body>
 
+    <!-- 1. ЭКРАН ЛОББИ -->
     <div id="lobby-screen">
         <div class="lobby-header">
             <span>Super</span> Play
         </div>
 
         <div class="games-grid">
+            <!-- Первая игра -->
             <div class="game-card">
                 <div class="game-preview">
                     <div class="preview-cube"></div>
@@ -249,6 +240,7 @@
                 </div>
             </div>
             
+            <!-- Вторая игра: Побег из тюрьмы -->
             <div class="game-card">
                 <div class="game-preview prison">
                     <i class="fa-solid fa-bars preview-bars"></i>
@@ -261,6 +253,7 @@
         </div>
     </div>
 
+    <!-- 2. ИГРОВОЙ ЭКРАН -->
     <div id="game-screen">
         <div class="exit-door-btn" id="exitDoorBtn" title="Выйти в меню">
             <i class="fa-solid fa-door-open"></i>
@@ -284,7 +277,7 @@
         const exitDoorBtn = document.getElementById('exitDoorBtn');
         const canvasContainer = document.getElementById('canvas-container');
 
-        let currentGameMode = ''; // 'cube' или 'prison'
+        let currentGameMode = ''; 
         let gameActive = false;
         let loopId = null;
 
@@ -300,7 +293,14 @@
         let touchMoveX = 0;
         let touchMoveZ = 0;
 
-        // --- ОБЩЕЕ РАСШИРЕНИЕ ЭКРАНА ---
+        // Переменные Roblox-поворота головы (в радианах)
+        let cameraYaw = 0;   
+        let cameraPitch = 0; 
+        let isRotating = false;
+        let previousMouseX = 0;
+        let previousMouseY = 0;
+
+        // Изменение размеров экрана
         function handleResize() {
             if (!gameActive) return;
             if (currentGameMode === 'cube' && canvas2D) {
@@ -316,7 +316,7 @@
         window.addEventListener('resize', handleResize);
 
         // ==========================================
-        // НАСТРОЙКИ И ПЕРЕМЕННЫЕ ИГРЫ 1: 2D КУБИК
+        // ИГРА 1: 2D КУБИК
         // ==========================================
         let canvas2D = null;
         let ctx2D = null;
@@ -371,15 +371,12 @@
             ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
             canvas2D.style.backgroundColor = '#87CEEB';
 
-            // Трава
             ctx2D.fillStyle = '#2ed573';
             ctx2D.fillRect(0, groundY, canvas2D.width, canvas2D.height - groundY);
 
-            // Kuбик
             ctx2D.fillStyle = '#FF5733';
             ctx2D.fillRect(player2D.x, player2D.y, player2D.width, player2D.height);
 
-            // Глазки
             ctx2D.fillStyle = '#FFFFFF';
             let eyeX = player2D.x + (player2D.vx >= 0 ? 30 : 5);
             ctx2D.fillRect(eyeX, player2D.y + 12, 10, 10);
@@ -389,7 +386,7 @@
         }
 
         // ==========================================
-        // НАСТРОЙКИ И ПЕРЕМЕННЫЕ ИГРЫ 2: 3D ТЮРЬМА (1 ЛИЦО)
+        // ИГРА 2: 3D ТЮРЬМА (С ПОВОРОТОМ ГОЛОВЫ)
         // ==========================================
         let scene3D, camera3D, renderer3D;
         let platforms3D = [];
@@ -403,10 +400,10 @@
         const gravity3D = 0.01;
 
         function initPrisonGame() {
-            canvasContainer.innerHTML = ''; // Очищаем контейнер
+            canvasContainer.innerHTML = ''; 
             
             scene3D = new THREE.Scene();
-            scene3D.background = new THREE.Color(0x1a1c1e); // Темная атмосфера тюрьмы
+            scene3D.background = new THREE.Color(0x1a1c1e); 
             scene3D.fog = new THREE.FogExp2(0x1a1c1e, 0.02);
 
             camera3D = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -414,26 +411,24 @@
             renderer3D.setSize(window.innerWidth, window.innerHeight);
             canvasContainer.appendChild(renderer3D.domElement);
 
-            // Свет в тюрьме
             const ambient = new THREE.AmbientLight(0xffffff, 0.3);
             scene3D.add(ambient);
-            const dirLight = new THREE.DirectionalLight(0x7ea2ff, 0.7); // Синеватый лунный свет
+            const dirLight = new THREE.DirectionalLight(0x7ea2ff, 0.7); 
             dirLight.position.set(10, 30, 10);
             scene3D.add(dirLight);
 
-            // Сброс игрока
+            // Сброс позиции и углов поворота головы
             player3D.pos.set(0, 2, 0);
             player3D.vel.set(0, 0, 0);
+            cameraYaw = 0;
+            cameraPitch = 0;
             camera3D.position.copy(player3D.pos);
 
-            // Создание плит паркура (Тюремные бетонные плиты)
             platforms3D = [];
-            const mat = new THREE.MeshStandardMaterial({ color: 0x4b535c, roughness: 0.8 }); // Серый бетон
+            const mat = new THREE.MeshStandardMaterial({ color: 0x4b535c, roughness: 0.8 }); 
 
-            // Старт
             create3DPlatform(0, 0, 0, 5, 5, mat);
 
-            // Цепочка тюремного паркура
             let nextZ = -6;
             let nextX = 0;
             for (let i = 0; i < 30; i++) {
@@ -458,29 +453,31 @@
         }
 
         function updatePrisonGame() {
-            // Движение кнопками ПК или мобильным джойстиком
-            let mz = 0;
-            let mx = 0;
+            let moveForward = 0;
+            let moveRight = 0;
 
-            if (keys.forward) mz = -1;
-            if (keys.backward) mz = 1;
-            if (keys.left) mx = -1;
-            if (keys.right) mx = 1;
+            if (keys.forward) moveForward = 1;
+            if (keys.backward) moveForward = -1;
+            if (keys.left) moveRight = -1;
+            if (keys.right) moveRight = 1;
 
-            // Если работает тач-джойстик
+            // Управление мобильным джойстиком
             if (joystickActive) {
-                mx = touchMoveX;
-                mz = touchMoveZ;
+                moveRight = touchMoveX;
+                moveForward = -touchMoveZ; 
             }
 
-            player3D.pos.x += mx * player3D.speed;
-            player3D.pos.z += mz * player3D.speed;
+            // Вычисляем направление движения с учетом поворота головы (cameraYaw)
+            const frontVector = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
+            const rightVector = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
 
-            // Физика падения
+            player3D.pos.addScaledVector(frontVector, moveForward * player3D.speed);
+            player3D.pos.addScaledVector(rightVector, moveRight * player3D.speed);
+
+            // Физика и гравитация
             player3D.vel.y -= gravity3D;
             player3D.pos.y += player3D.vel.y;
 
-            // Коллизии с блоками
             player3D.isGrounded = false;
             for (let i = 0; i < platforms3D.length; i++) {
                 let p = platforms3D[i];
@@ -496,15 +493,21 @@
                 }
             }
 
-            // СМЕРТЬ ПРИ ПАДЕНИИ -> ТЕЛЕПОРТ В НАЧАЛО ТЮРЬМЫ
             if (player3D.pos.y < -15) {
                 player3D.pos.set(0, 2, 0);
                 player3D.vel.set(0, 0, 0);
             }
 
-            // Камера в глазах кубика
+            // Привязка камеры к голове персонажа
             camera3D.position.copy(player3D.pos);
-            camera3D.lookAt(player3D.pos.x, player3D.pos.y - 0.4, player3D.pos.z - 5);
+
+            // Куда именно мы смотрим (Вычисление направления взгляда)
+            const target = new THREE.Vector3(0, 0, -1);
+            target.applyAxisAngle(new THREE.Vector3(1, 0, 0), cameraPitch);
+            target.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
+            target.add(player3D.pos);
+            
+            camera3D.lookAt(target);
 
             if (keys.jump && player3D.isGrounded) {
                 player3D.vel.y = player3D.jumpForce;
@@ -513,13 +516,13 @@
         }
 
         // ==========================================
-        // СИСТЕМА УПРАВЛЕНИЯ (ПК и ТЕЛЕФОНЫ)
+        // ОБРАБОТЧИКИ ПК КЛАВИАТУРЫ
         // ==========================================
         window.addEventListener('keydown', (e) => {
             if (!gameActive) return;
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
-            if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') keys.jump = true;
+            if (e.code === 'Space') keys.jump = true;
 
             if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = true;
             if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.backward = true;
@@ -528,13 +531,15 @@
         window.addEventListener('keyup', (e) => {
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = false;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
-            if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') keys.jump = false;
+            if (e.code === 'Space') keys.jump = false;
             
             if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = false;
             if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.backward = false;
         });
 
-        // Работа универсального мобильного джойстика
+        // ==========================================
+        // МОБИЛЬНЫЙ СИНИЙ ДЖОЙСТИК
+        // ==========================================
         joystickZone.addEventListener('touchstart', (e) => {
             joystickActive = true;
             startX = e.touches[0].clientX;
@@ -575,16 +580,65 @@
             touchMoveX = 0; touchMoveZ = 0;
         });
 
-        // Кнопка мобильного прыжка
         jumpBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
             keys.jump = true;
         });
         jumpBtn.addEventListener('touchend', () => { keys.jump = false; });
 
+        // ==========================================
+        // СИСТЕМА ROBLOX-ПОВОРОТА ГОЛОВЫ СВАЙПАМИ
+        // ==========================================
+        window.addEventListener('mousedown', (e) => {
+            if (e.target.closest('#controls') || e.target.closest('.exit-door-btn') || !gameActive || currentGameMode !== 'prison') return;
+            isRotating = true;
+            previousMouseX = e.clientX;
+            previousMouseY = e.clientY;
+        });
+
+        window.addEventListener('touchstart', (e) => {
+            if (e.target.closest('#controls') || e.target.closest('.exit-door-btn') || !gameActive || currentGameMode !== 'prison') return;
+            isRotating = true;
+            previousMouseX = e.touches[0].clientX;
+            previousMouseY = e.touches[0].clientY;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isRotating) return;
+            const deltaX = e.clientX - previousMouseX;
+            const deltaY = e.clientY - previousMouseY;
+
+            cameraYaw -= deltaX * 0.005;   
+            cameraPitch -= deltaY * 0.005; 
+
+            // Ограничение взгляда (чтобы нельзя было вывернуть голову назад)
+            cameraPitch = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, cameraPitch));
+
+            previousMouseX = e.clientX;
+            previousMouseY = e.clientY;
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (!isRotating) return;
+            if (e.target.closest('#joystickZone')) return; // Джойстик не должен крутить камеру
+
+            const deltaX = e.touches[0].clientX - previousMouseX;
+            const deltaY = e.touches[0].clientY - previousMouseY;
+
+            cameraYaw -= deltaX * 0.008;   
+            cameraPitch -= deltaY * 0.008;
+
+            cameraPitch = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, cameraPitch));
+
+            previousMouseX = e.touches[0].clientX;
+            previousMouseY = e.touches[0].clientY;
+        });
+
+        window.addEventListener('mouseup', () => isRotating = false);
+        window.addEventListener('touchend', () => isRotating = false);
 
         // ==========================================
-        // ИГРОВОЙ ЦИКЛ И ПЕРЕКЛЮЧЕНИЕ ЭКРАНОВ
+        // ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ
         // ==========================================
         function masterLoop() {
             if (!gameActive) return;
@@ -600,7 +654,6 @@
             loopId = requestAnimationFrame(masterLoop);
         }
 
-        // Кнопка запуска 1 игры (Кубик)
         startGameBtn.addEventListener('click', () => {
             lobbyScreen.style.display = 'none';
             gameScreen.style.display = 'block';
@@ -610,7 +663,6 @@
             masterLoop();
         });
 
-        // Кнопка запуска 2 игры (Побег из тюрьмы)
         startPrisonBtn.addEventListener('click', () => {
             lobbyScreen.style.display = 'none';
             gameScreen.style.display = 'block';
@@ -620,7 +672,6 @@
             masterLoop();
         });
 
-        // Выход обратно в главное меню
         exitDoorBtn.addEventListener('click', () => {
             gameActive = false;
             cancelAnimationFrame(loopId);
@@ -630,6 +681,7 @@
             
             for (let k in keys) keys[k] = false;
             joystickActive = false;
+            isRotating = false;
             stick.style.transform = 'translate(0px, 0px)';
         });
     </script>
