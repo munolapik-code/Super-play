@@ -82,6 +82,10 @@
             background: linear-gradient(135deg, #2c3e50 0%, #000000 100%);
         }
 
+        .game-preview.brookhaven {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+        }
+
         .preview-cube {
             width: 45px;
             height: 45px;
@@ -90,7 +94,7 @@
             box-shadow: 0 8px 15px rgba(0,0,0,0.2);
         }
 
-        .preview-bars {
+        .preview-bars, .preview-house {
             font-size: 50px;
             color: rgba(255, 255, 255, 0.2);
         }
@@ -222,12 +226,14 @@
 </head>
 <body>
 
+    <!-- 1. ЭКРАН ЛОББИ -->
     <div id="lobby-screen">
         <div class="lobby-header">
             <span>Super</span> Play
         </div>
 
         <div class="games-grid">
+            <!-- Первая игра -->
             <div class="game-card">
                 <div class="game-preview">
                     <div class="preview-cube"></div>
@@ -238,18 +244,31 @@
                 </div>
             </div>
             
+            <!-- Вторая игра: Побег из тюрьмы -->
             <div class="game-card">
                 <div class="game-preview prison">
                     <i class="fa-solid fa-bars preview-bars"></i>
                 </div>
                 <div class="game-info">
-                    <h3 class="game-title">Побег из тюрьмы</h3>
+                    <h3 class="game-title">Побег из тюрьмы 2</h3>
                     <button class="play-btn" id="startPrisonBtn">Играть</button>
+                </div>
+            </div>
+
+            <!-- Третья игра: Брукхейвен -->
+            <div class="game-card">
+                <div class="game-preview brookhaven">
+                    <i class="fa-solid fa-house preview-house"></i>
+                </div>
+                <div class="game-info">
+                    <h3 class="game-title">Брукхейвен</h3>
+                    <button class="play-btn" id="startBrookhavenBtn">Играть</button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- 2. ИГРОВОЙ ЭКРАН -->
     <div id="game-screen">
         <div class="exit-door-btn" id="exitDoorBtn" title="Выйти в меню">
             <i class="fa-solid fa-door-open"></i>
@@ -270,6 +289,7 @@
         const gameScreen = document.getElementById('game-screen');
         const startGameBtn = document.getElementById('startGameBtn');
         const startPrisonBtn = document.getElementById('startPrisonBtn');
+        const startBrookhavenBtn = document.getElementById('startBrookhavenBtn');
         const exitDoorBtn = document.getElementById('exitDoorBtn');
         const canvasContainer = document.getElementById('canvas-container');
 
@@ -296,10 +316,10 @@
         let previousMouseX = 0;
         let previousMouseY = 0;
 
-        // Переменные переключения лиц (дистанции камеры в стиле Roblox)
-        let cameraDistance = 4; // Дистанция по умолчанию (3-е лицо)
-        let targetDistance = 4; // Плавное приближение/отдаление
-        let startTouchDistance = 0; // Для жеста двумя пальцами на телефоне
+        // Переменные переключения лиц
+        let cameraDistance = 4; 
+        let targetDistance = 4; 
+        let startTouchDistance = 0; 
 
         // Изменение размеров экрана
         function handleResize() {
@@ -308,7 +328,7 @@
                 canvas2D.width = window.innerWidth;
                 canvas2D.height = window.innerHeight;
                 groundY = canvas2D.height - 120;
-            } else if (currentGameMode === 'prison' && camera3D && renderer3D) {
+            } else if ((currentGameMode === 'prison' || currentGameMode === 'brookhaven') && camera3D && renderer3D) {
                 camera3D.aspect = window.innerWidth / window.innerHeight;
                 camera3D.updateProjectionMatrix();
                 renderer3D.setSize(window.innerWidth, window.innerHeight);
@@ -387,11 +407,11 @@
         }
 
         // ==========================================
-        // ИГРА 2: 3D ТЮРЬМА (ОТ 1 И 3 ЛИЦА)
+        // ОБЩИЙ 3D ДВИЖОК ДЛЯ ТЮРЬМЫ И БРУКХЕЙВЕНА
         // ==========================================
         let scene3D, camera3D, renderer3D;
         let platforms3D = [];
-        let playerMesh3D; // Визуальное 3D тело персонажа-кубика
+        let playerMesh3D; 
         
         const player3D = {
             pos: new THREE.Vector3(0, 2, 0),
@@ -402,9 +422,22 @@
         };
         const gravity3D = 0.01;
 
+        function create3DPlatform(x, y, z, w, h, l, material) {
+            const geo = new THREE.BoxGeometry(w, h, l);
+            const mesh = new THREE.Mesh(geo, material);
+            mesh.position.set(x, y, z);
+            scene3D.add(mesh);
+            
+            platforms3D.push({
+                minX: x - w/2, maxX: x + w/2,
+                minY: y + h/2,
+                minZ: z - l/2, maxZ: z + l/2
+            });
+        }
+
+        // ИГРА 2: ТЮРЬМА (НОЧЬ)
         function initPrisonGame() {
             canvasContainer.innerHTML = ''; 
-            
             scene3D = new THREE.Scene();
             scene3D.background = new THREE.Color(0x1a1c1e); 
             scene3D.fog = new THREE.FogExp2(0x1a1c1e, 0.02);
@@ -420,49 +453,112 @@
             dirLight.position.set(10, 30, 10);
             scene3D.add(dirLight);
 
-            // Создаем самого персонажа — Твой Красивый Кубик оранжевого цвета
-            const playerGeo = new THREE.BoxGeometry(1, 1, 1);
-            const playerMat = new THREE.MeshStandardMaterial({ color: 0xFF5733, roughness: 0.5 });
-            playerMesh3D = new THREE.Mesh(playerGeo, playerMat);
-            scene3D.add(playerMesh3D);
-
-            // Сброс позиции и углов поворота головы
-            player3D.pos.set(0, 2, 0);
-            player3D.vel.set(0, 0, 0);
-            cameraYaw = 0;
-            cameraPitch = 0;
-            cameraDistance = 4;
-            targetDistance = 4;
+            initPlayer3D();
 
             platforms3D = [];
             const mat = new THREE.MeshStandardMaterial({ color: 0x4b535c, roughness: 0.8 }); 
 
-            create3DPlatform(0, 0, 0, 5, 5, mat);
+            create3DPlatform(0, 0, 0, 5, 0.8, 5, mat);
 
             let nextZ = -6;
             let nextX = 0;
             for (let i = 0; i < 30; i++) {
                 nextX += (Math.random() - 0.5) * 4;
                 let nextY = (Math.random() - 0.2) * 1.2; 
-                create3DPlatform(nextX, nextY, nextZ, 2.5, 2.5, mat);
+                create3DPlatform(nextX, nextY, nextZ, 2.5, 0.8, 2.5, mat);
                 nextZ -= 7;
             }
         }
 
-        function create3DPlatform(x, y, z, w, l, material) {
-            const geo = new THREE.BoxGeometry(w, 0.8, l);
-            const mesh = new THREE.Mesh(geo, material);
-            mesh.position.set(x, y, z);
-            scene3D.add(mesh);
-            
-            platforms3D.push({
-                minX: x - w/2, maxX: x + w/2,
-                minY: y + 0.4,
-                minZ: z - l/2, maxZ: z + l/2
+        // ИГРА 3: БРУКХЕЙВЕН (ДЕНЬ И 6 ДВУХЭТАЖНЫХ ДОМОВ)
+        function initBrookhavenGame() {
+            canvasContainer.innerHTML = ''; 
+            scene3D = new THREE.Scene();
+            scene3D.background = new THREE.Color(0x87CEEB); // Яркое голубое небо дня!
+
+            camera3D = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer3D = new THREE.WebGLRenderer({ antialias: true });
+            renderer3D.setSize(window.innerWidth, window.innerHeight);
+            canvasContainer.appendChild(renderer3D.domElement);
+
+            // Дневной яркий свет
+            const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+            scene3D.add(ambient);
+            const sunLight = new THREE.DirectionalLight(0xffffff, 0.9); 
+            sunLight.position.set(20, 40, 20);
+            scene3D.add(sunLight);
+
+            initPlayer3D();
+            platforms3D = [];
+
+            // Большая зеленая земля Брукхейвена
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x55aa44, roughness: 0.9 });
+            create3DPlatform(0, -0.4, 0, 120, 0.8, 120, groundMat);
+
+            // Настройки для 6 домов
+            const housePositions = [
+                {x: -15, z: -15}, {x: 15, z: -15},
+                {x: -25, z: -40}, {x: 25, z: -40},
+                {x: -15, z: -65}, {x: 15, z: -65}
+            ];
+
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5 }); // Светлые стены
+            const roofMat = new THREE.MeshStandardMaterial({ color: 0xcc4444, roughness: 0.5 }); // Красная крыша
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0xaa7744, roughness: 0.7 }); // Деревянный пол 2 этажа
+            const stairsMat = new THREE.MeshStandardMaterial({ color: 0x0084FF, roughness: 0.6 }); // Синяя лестница
+
+            // Строим 6 двухэтажных домов
+            housePositions.forEach((pos) => {
+                let hX = pos.x;
+                let hZ = pos.z;
+
+                // Задняя стена
+                create3DPlatform(hX, 3.5, hZ - 5, 10, 7, 0.5, wallMat);
+                // Левая стена
+                create3DPlatform(hX - 5, 3.5, hZ, 0.5, 7, 10, wallMat);
+                // Правая стена
+                create3DPlatform(hX + 5, 3.5, hZ, 0.5, 7, 10, wallMat);
+                
+                // Передняя стена с ДВЕРНЫМ ПРОЕМОМ по центру
+                create3DPlatform(hX - 3.25, 3.5, hZ + 5, 3.5, 7, 0.5, wallMat); // Левая часть переда
+                create3DPlatform(hX + 3.25, 3.5, hZ + 5, 3.5, 7, 0.5, wallMat); // Правая часть переда
+                create3DPlatform(hX, 5.5, hZ + 5, 3, 3, 0.5, wallMat); // Верхняя часть над дверью
+
+                // ПОЛ ВТОРОГО ЭТАЖА (оставляем сзади место для лестницы 3x3 метра)
+                create3DPlatform(hX, 3.3, hZ + 1.5, 9.5, 0.3, 6.5, floorMat);
+
+                // УДОБНАЯ СТУПЕНЧАТАЯ ЛЕСТНИЦА НА 2 ЭТАЖ
+                // 5 блоков-ступенек, по которым кубик может запрыгнуть или зайти
+                for (let step = 0; step < 5; step++) {
+                    let sW = 2.5; 
+                    let sH = 0.6;
+                    let sL = 0.7;
+                    let sX = hX - 1;
+                    let sY = step * 0.6 + 0.3;
+                    let sZ = (hZ - 4.5) + (step * 1.1);
+                    create3DPlatform(sX, sY, sZ, sW, sH, sL, stairsMat);
+                }
+
+                // КРЫША ДОМА
+                create3DPlatform(hX, 7.3, hZ, 11, 0.5, 11, roofMat);
             });
         }
 
-        function updatePrisonGame() {
+        function initPlayer3D() {
+            const playerGeo = new THREE.BoxGeometry(1, 1, 1);
+            const playerMat = new THREE.MeshStandardMaterial({ color: 0xFF5733, roughness: 0.5 });
+            playerMesh3D = new THREE.Mesh(playerGeo, playerMat);
+            scene3D.add(playerMesh3D);
+
+            player3D.pos.set(0, 2, 5);
+            player3D.vel.set(0, 0, 0);
+            cameraYaw = 0;
+            cameraPitch = 0;
+            cameraDistance = 5;
+            targetDistance = 5;
+        }
+
+        function update3DPhysics() {
             let moveForward = 0;
             let moveRight = 0;
 
@@ -476,14 +572,12 @@
                 moveForward = -touchMoveZ; 
             }
 
-            // Направление движения относительно взгляда камеры
             const frontVector = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
             const rightVector = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
 
             player3D.pos.addScaledVector(frontVector, moveForward * player3D.speed);
             player3D.pos.addScaledVector(rightVector, moveRight * player3D.speed);
 
-            // Физика
             player3D.vel.y -= gravity3D;
             player3D.pos.y += player3D.vel.y;
 
@@ -502,33 +596,28 @@
                 }
             }
 
+            // Если упал под карту Брукхейвена или Тюрьмы — респавн
             if (player3D.pos.y < -15) {
-                player3D.pos.set(0, 2, 0);
+                player3D.pos.set(0, 2, 5);
                 player3D.vel.set(0, 0, 0);
             }
 
-            // Обновляем позицию 3D кубика в мире
             playerMesh3D.position.copy(player3D.pos);
-            // Поворачиваем кубик туда, куда направлен взгляд игрока
             playerMesh3D.rotation.y = cameraYaw;
 
-            // Плавное изменение дистанции камеры (эффект зума Roblox)
             cameraDistance += (targetDistance - cameraDistance) * 0.1;
 
-            // Если камера в упоре (дистанция меньше 0.5) — скрываем тело кубика, чтобы это было чистое 1-е лицо
             if (cameraDistance < 0.5) {
                 playerMesh3D.visible = false;
             } else {
                 playerMesh3D.visible = true;
             }
 
-            // Расчет позиции камеры на основе углов поворота и текущей дистанции
             const offset = new THREE.Vector3(0, 0, 1);
             offset.applyAxisAngle(new THREE.Vector3(1, 0, 0), cameraPitch);
             offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
             offset.multiplyScalar(cameraDistance);
 
-            // Камера смотрит немного выше центра кубика (на уровне глаз)
             const headPos = player3D.pos.clone().add(new THREE.Vector3(0, 0.4, 0));
             camera3D.position.copy(headPos).add(offset);
             camera3D.lookAt(headPos);
@@ -540,14 +629,13 @@
         }
 
         // ==========================================
-        // ОБРАБОТЧИКИ ПК КЛАВИАТУРЫ И КОЛЕСИКА
+        // ОБРАБОТЧИКИ УПРАВЛЕНИЯ (ПК И МОБИЛЬНЫЕ)
         // ==========================================
         window.addEventListener('keydown', (e) => {
             if (!gameActive) return;
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
             if (e.code === 'Space') keys.jump = true;
-
             if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = true;
             if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.backward = true;
         });
@@ -556,24 +644,16 @@
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = false;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
             if (e.code === 'Space') keys.jump = false;
-            
             if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = false;
             if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.backward = false;
         });
 
-        // Roblox-зум колесиком мыши на ПК
         window.addEventListener('wheel', (e) => {
-            if (!gameActive || currentGameMode !== 'prison') return;
-            if (e.deltaY > 0) {
-                targetDistance = Math.min(12, targetDistance + 1); // Отдаление (3-е лицо)
-            } else {
-                targetDistance = Math.max(0, targetDistance - 1);  // Приближение (1-е лицо)
-            }
+            if (!gameActive || (currentGameMode !== 'prison' && currentGameMode !== 'brookhaven')) return;
+            if (e.deltaY > 0) targetDistance = Math.min(15, targetDistance + 1); 
+            else targetDistance = Math.max(0, targetDistance - 1);  
         });
 
-        // ==========================================
-        // МОБИЛЬНЫЙ СИНИЙ ДЖОЙСТИК
-        // ==========================================
         joystickZone.addEventListener('touchstart', (e) => {
             joystickActive = true;
             startX = e.touches[0].clientX;
@@ -601,7 +681,7 @@
                 if (moveX > 8) { keys.right = true; keys.left = false; }
                 else if (moveX < -8) { keys.left = true; keys.right = false; }
                 else { keys.left = false; keys.right = false; }
-            } else if (currentGameMode === 'prison') {
+            } else {
                 touchMoveX = moveX / maxDist;
                 touchMoveZ = moveY / maxDist;
             }
@@ -620,20 +700,16 @@
         });
         jumpBtn.addEventListener('touchend', () => { keys.jump = false; });
 
-        // ==========================================
-        // ROBLOX-СИСТЕМА: ПОВОРОТ И ЖЕСТЫ ТАЧЕЙ (ДЛЯ ТЕЛЕФОНОВ)
-        // ==========================================
         window.addEventListener('mousedown', (e) => {
-            if (e.target.closest('#controls') || e.target.closest('.exit-door-btn') || !gameActive || currentGameMode !== 'prison') return;
+            if (e.target.closest('#controls') || e.target.closest('.exit-door-btn') || !gameActive || (currentGameMode !== 'prison' && currentGameMode !== 'brookhaven')) return;
             isRotating = true;
             previousMouseX = e.clientX;
             previousMouseY = e.clientY;
         });
 
         window.addEventListener('touchstart', (e) => {
-            if (e.target.closest('#controls') || e.target.closest('.exit-door-btn') || !gameActive || currentGameMode !== 'prison') return;
+            if (e.target.closest('#controls') || e.target.closest('.exit-door-btn') || !gameActive || (currentGameMode !== 'prison' && currentGameMode !== 'brookhaven')) return;
             
-            // Если игрок коснулся экрана ДВУМЯ ПАЛЬЦАМИ — это жест зума (изменение лица)
             if (e.touches.length === 2) {
                 isRotating = false;
                 startTouchDistance = Math.hypot(
@@ -654,7 +730,6 @@
 
             cameraYaw -= deltaX * 0.005;   
             cameraPitch -= deltaY * 0.005; 
-
             cameraPitch = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, cameraPitch));
 
             previousMouseX = e.clientX;
@@ -662,9 +737,8 @@
         });
 
         window.addEventListener('touchmove', (e) => {
-            if (!gameActive || currentGameMode !== 'prison') return;
+            if (!gameActive || (currentGameMode !== 'prison' && currentGameMode !== 'brookhaven')) return;
 
-            // Обработка щипка двумя пальцами (Зум камеры на телефоне)
             if (e.touches.length === 2) {
                 const currentDist = Math.hypot(
                     e.touches[0].clientX - e.touches[1].clientX,
@@ -673,10 +747,10 @@
                 const diff = startTouchDistance - currentDist;
 
                 if (diff > 10) {
-                    targetDistance = Math.min(12, targetDistance + 0.4); // Разведение пальцев — отдаление
+                    targetDistance = Math.min(15, targetDistance + 0.4); 
                     startTouchDistance = currentDist;
                 } else if (diff < -10) {
-                    targetDistance = Math.max(0, targetDistance - 0.4);  // Сведение пальцев — приближение
+                    targetDistance = Math.max(0, targetDistance - 0.4);  
                     startTouchDistance = currentDist;
                 }
                 return;
@@ -690,7 +764,6 @@
 
             cameraYaw -= deltaX * 0.008;   
             cameraPitch -= deltaY * 0.008;
-
             cameraPitch = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, cameraPitch));
 
             previousMouseX = e.touches[0].clientX;
@@ -712,8 +785,8 @@
             if (currentGameMode === 'cube') {
                 updateCubeGame();
                 drawCubeGame();
-            } else if (currentGameMode === 'prison') {
-                updatePrisonGame();
+            } else if (currentGameMode === 'prison' || currentGameMode === 'brookhaven') {
+                update3DPhysics();
                 renderer3D.render(scene3D, camera3D);
             }
 
@@ -735,6 +808,15 @@
             currentGameMode = 'prison';
             gameActive = true;
             initPrisonGame();
+            masterLoop();
+        });
+
+        startBrookhavenBtn.addEventListener('click', () => {
+            lobbyScreen.style.display = 'none';
+            gameScreen.style.display = 'block';
+            currentGameMode = 'brookhaven';
+            gameActive = true;
+            initBrookhavenGame();
             masterLoop();
         });
 
