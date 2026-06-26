@@ -1,11 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Паркур - Super play</title>
-    <!-- Иконки для кнопок (дверь, play) -->
+    <title>Super Play - Список игр</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         *, *::before, *::after {
@@ -17,148 +15,120 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: #191B1D; /* Оригинальный темный цвет Roblox */
+            background-color: #121416; /* Красивый глубокий темный фон */
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             color: #FFFFFF;
-            overflow-x: hidden;
+            overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
         }
 
-        /* --- 1. СТРАНИЦА ИГРЫ В СТИЛЕ ROBLOX --- */
-        #roblox-menu {
+        /* --- 1. ГЛАВНЫЙ ЭКРАН (СПИСОК ИГР) --- */
+        #lobby-screen {
             display: flex;
             flex-direction: column;
             width: 100%;
-            min-height: 100%;
-            background-color: #191B1D;
+            height: 100%;
+            padding: 20px;
+            overflow-y: auto;
         }
 
-        /* Верхняя шапка сайта */
-        .roblox-navbar {
-            height: 50px;
-            background-color: #232527;
+        /* Верхняя панель */
+        .lobby-header {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #232527;
+            padding-bottom: 15px;
+        }
+        .lobby-header span {
+            color: #0084FF;
+        }
+
+        /* Сетка для карточек игр */
+        .games-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: flex-start;
+        }
+
+        /* Карточка одной игры */
+        .game-card {
+            background-color: #1C1E22;
+            border: 1px solid #2D3035;
+            border-radius: 16px;
+            width: 260px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .game-card:hover {
+            transform: translateY(-5px);
+            border-color: #0084FF;
+        }
+
+        /* Картинка-превью внутри карточки */
+        .game-preview {
+            height: 150px;
+            background: linear-gradient(135deg, #FF5733 0%, #900C3F 100%);
             display: flex;
             align-items: center;
-            padding: 0 20px;
-            border-bottom: 1px solid #393B3D;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* Маленький декоративный кубик на превью */
+        .preview-cube {
+            width: 45px;
+            height: 45px;
+            background-color: #FFFFFF;
+            border-radius: 8px;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+        }
+
+        /* Инфо внутри карточки */
+        .game-info {
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            flex-grow: 1;
+        }
+
+        .game-title {
             font-size: 18px;
             font-weight: 700;
-            letter-spacing: 0.5px;
-        }
-        .roblox-navbar span {
-            color: #0084FF;
-            margin-right: 5px;
-        }
-
-        /* Главный блок страницы плейса */
-        .place-container {
-            max-width: 1100px;
-            width: 100%;
-            margin: 0 auto;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        /* Большая обложка игры вверху страницы */
-        .place-banner {
-            width: 100%;
-            height: 300px;
-            background: linear-gradient(135deg, #2E3033 0%, #0f1011 100%);
-            border-radius: 8px;
-            border: 1px solid #393B3D;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-
-        /* Стилизованный кубик на обложке */
-        .banner-cube {
-            width: 60px;
-            height: 60px;
-            background-color: #FF5733;
-            border-radius: 6px;
-            box-shadow: 0 10px 25px rgba(255, 87, 51, 0.5);
-            position: relative;
-        }
-        .banner-cube::after {
-            content: '';
-            position: absolute;
-            top: 15px;
-            right: 10px;
-            width: 12px;
-            height: 12px;
-            background-color: white;
-            border-radius: 3px;
-        }
-
-        /* Блок управления под обложкой: Название слева, Кнопка Play справа */
-        .place-main-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background-color: #232527;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #393B3D;
-        }
-
-        .place-title {
-            font-size: 32px;
-            font-weight: 700;
             margin: 0;
+            color: #F5F5F5;
         }
 
-        /* Знаменитая зелёная кнопка Play из Roblox */
-        .roblox-play-btn {
-            background-color: #00B06F; /* Фирменный зеленый цвет Roblox */
+        /* Кнопка Играть внизу карточки */
+        .play-btn {
+            background-color: #0084FF;
             color: #FFFFFF;
             border: none;
-            width: 70px;
-            height: 70px;
-            border-radius: 12px;
-            font-size: 28px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 12px rgba(0, 176, 111, 0.3);
-            transition: background-color 0.1s, transform 0.1s;
-        }
-
-        .roblox-play-btn:hover {
-            background-color: #009E63;
-            transform: scale(1.03);
-        }
-
-        .roblox-play-btn:active {
-            background-color: #008C57;
-            transform: scale(0.98);
-        }
-
-        /* Описание игры внизу страницы */
-        .place-description {
-            background-color: #232527;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #393B3D;
-            line-height: 1.6;
-        }
-        .place-description h3 {
-            margin-top: 0;
-            color: #B8B8B8;
+            padding: 12px;
+            border-radius: 10px;
             font-size: 16px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.15s;
+            text-align: center;
+            width: 100%;
         }
 
-        /* --- 2. ИГРОВОЙ ЭКРАН --- */
+        .play-btn:hover {
+            background-color: #006ED5;
+        }
+
+        /* --- 2. ЭКРАН ИГРЫ --- */
         #game-screen {
-            display: none; /* Скрыт, пока не нажмут Play */
+            display: none; /* Изначально скрыт */
             width: 100%;
             height: 100%;
             position: relative;
@@ -178,9 +148,9 @@
             left: 20px;
             width: 50px;
             height: 50px;
-            background-color: rgba(35, 37, 39, 0.85);
-            border: 2px solid #393B3D;
-            border-radius: 10px;
+            background-color: rgba(28, 30, 34, 0.85);
+            border: 2px solid #2D3035;
+            border-radius: 12px;
             color: #FF4A4A;
             display: flex;
             align-items: center;
@@ -188,14 +158,15 @@
             cursor: pointer;
             z-index: 100;
             font-size: 22px;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, transform 0.1s;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
         .exit-door-btn:hover {
-            background-color: #232527;
+            background-color: #1C1E22;
+            transform: scale(1.05);
         }
 
-        /* Джойстик и прыжок для сенсора */
+        /* Кнопки управления для телефонов */
         #controls {
             position: absolute;
             bottom: 30px;
@@ -215,8 +186,8 @@
         .joystick-zone {
             width: 110px;
             height: 110px;
-            background: rgba(35, 37, 39, 0.6);
-            border: 2px solid rgba(255, 255, 255, 0.2);
+            background: rgba(28, 30, 34, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.15);
             border-radius: 50%;
             position: relative;
             touch-action: none;
@@ -229,7 +200,7 @@
             position: absolute;
             top: 30px;
             left: 30px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
         }
 
         .jump-btn {
@@ -245,50 +216,38 @@
             align-items: center;
             justify-content: center;
             touch-action: none;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
     </style>
 </head>
 <body>
 
-    <!-- ================= 1. СТРАНИЦА ИГРЫ ROBLOX ================= -->
-    <div id="roblox-menu">
-        <div class="roblox-navbar">
-            <span>Super</span> play
+    <div id="lobby-screen">
+        <div class="lobby-header">
+            <span>Super</span> Play
         </div>
 
-        <div class="place-container">
-            <!-- Обложка игры -->
-            <div class="place-banner">
-                <div class="banner-cube"></div>
+        <div class="games-grid">
+            <div class="game-card">
+                <div class="game-preview">
+                    <div class="preview-cube"></div>
+                </div>
+                <div class="game-info">
+                    <h3 class="game-title">Поиграй с кубиком</h3>
+                    <button class="play-btn" id="startGameBtn">Играть</button>
+                </div>
             </div>
-
-            <!-- Главная панель: Название и Кнопка запуск справа -->
-            <div class="place-main-info">
-                <h1 class="place-title">Паркур</h1>
-                <button class="roblox-play-btn" id="playBtn" title="Играть">
-                    <i class="fa-solid fa-play"></i>
-                </button>
+            
             </div>
-
-            <!-- Описание -->
-            <div class="place-description">
-                <h3>Описание</h3>
-                Добро пожаловать в Паркур на платформе Super play! Управляйте персонажем-кубиком, прыгайте по опасным платформам и пройдите всю длинную карту. Игра поддерживает клавиатуру на ПК и сенсорный джойстик на мобильных устройствах.
-            </div>
-        </div>
     </div>
 
-    <!-- ================= 2. ЭКРАН САМОЙ ИГРЫ ================= -->
     <div id="game-screen">
-        <!-- Кнопка Дверька для выхода -->
-        <div class="exit-door-btn" id="exitDoorBtn" title="Выйти на главную">
+        <div class="exit-door-btn" id="exitDoorBtn" title="Выйти в меню">
             <i class="fa-solid fa-door-open"></i>
         </div>
 
         <canvas id="gameCanvas"></canvas>
 
-        <!-- Сенсорное управление -->
         <div id="controls">
             <div class="joystick-zone" id="joystickZone">
                 <div class="joystick-stick" id="stick"></div>
@@ -297,11 +256,10 @@
         </div>
     </div>
 
-    <!-- ================= ИГРОВОЙ КОД ================= -->
     <script>
-        const robloxMenu = document.getElementById('roblox-menu');
+        const lobbyScreen = document.getElementById('lobby-screen');
         const gameScreen = document.getElementById('game-screen');
-        const playBtn = document.getElementById('playBtn');
+        const startGameBtn = document.getElementById('startGameBtn');
         const exitDoorBtn = document.getElementById('exitDoorBtn');
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -317,13 +275,13 @@
             if (gameActive) resizeCanvas();
         });
 
-        // Физика игры
+        // Настройки физики, кубика и земли
         const gravity = 0.6;
         const player = {
-            x: 100,
+            x: 150,
             y: 0,
-            width: 40,
-            height: 40,
+            width: 45,
+            height: 45,
             vx: 0,
             vy: 0,
             speed: 5.5,
@@ -331,30 +289,18 @@
             grounded: false
         };
 
-        const camera = { x: 0 };
-        let platforms = [];
+        let groundY = 0;
 
         function initLevel() {
-            const groundY = canvas.height - 100;
-            player.x = 100;
-            player.y = groundY - 100;
+            resizeCanvas();
+            groundY = canvas.height - 120; // Высота земли под любой экран
+            player.x = canvas.width / 2 - player.width / 2; // Спавн по центру экрана
+            player.y = groundY - player.height;
             player.vx = 0;
             player.vy = 0;
-            camera.x = 0;
-
-            platforms = [
-                { x: 0, y: groundY, width: 5000, height: 100, color: '#2ed573' }, 
-                { x: 450, y: groundY - 120, width: 130, height: 20, color: '#ffa502' },
-                { x: 720, y: groundY - 220, width: 130, height: 20, color: '#ff6b81' },
-                { x: 980, y: groundY - 160, width: 180, height: 20, color: '#ffa502' },
-                { x: 1300, y: groundY - 250, width: 130, height: 20, color: '#1e90ff' },
-                { x: 1600, y: groundY - 150, width: 120, height: 20, color: '#ffa502' },
-                { x: 1850, y: groundY - 260, width: 100, height: 20, color: '#ff6b81' },
-                { x: 2120, y: groundY - 180, width: 180, height: 20, color: '#ffa502' },
-                { x: 2450, y: groundY - 120, width: 300, height: 20, color: '#2ed573' }
-            ];
         }
 
+        // Управление кнопками клавиатуры (ПК)
         const keys = { left: false, right: false, jump: false };
 
         window.addEventListener('keydown', (e) => {
@@ -371,7 +317,7 @@
             if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') keys.jump = false;
         });
 
-        // Сенсорный джойстик
+        // Мобильный джойстик
         const joystickZone = document.getElementById('joystickZone');
         const stick = document.getElementById('stick');
         let joystickActive = false;
@@ -385,7 +331,7 @@
         joystickZone.addEventListener('touchmove', (e) => {
             if (!joystickActive) return;
             const diffX = e.touches[0].clientX - startX;
-            let maxDist = 30;
+            let maxDist = 35;
             let moveX = Math.max(-maxDist, Math.min(maxDist, diffX));
             stick.style.transform = `translateX(${moveX}px)`;
 
@@ -401,6 +347,7 @@
             keys.right = false;
         });
 
+        // Кнопка Прыжок для мобильных
         const jumpBtn = document.getElementById('jumpBtn');
         jumpBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
@@ -408,59 +355,58 @@
         });
         jumpBtn.addEventListener('touchend', () => { keys.jump = false; });
 
+
+        // --- ОБНОВЛЕНИЕ И ОТРИСОВКА ---
         function update() {
+            // Движение по горизонтали
             if (keys.left) player.vx = -player.speed;
             else if (keys.right) player.vx = player.speed;
             else player.vx = 0;
 
+            // Гравитация и физика
             player.vy += gravity;
             player.x += player.vx;
             player.y += player.vy;
 
-            if (player.y > canvas.height + 150) {
-                player.x = 100;
-                player.y = canvas.height - 250;
+            // Ограничение движения по границам экрана экрана
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+
+            // Столкновение с землей
+            if (player.y + player.height >= groundY) {
+                player.y = groundY - player.height;
                 player.vy = 0;
+                player.grounded = true;
+            } else {
+                player.grounded = false;
             }
 
-            player.grounded = false;
-            for (let plat of platforms) {
-                if (player.x + player.width > plat.x && player.x < plat.x + plat.width &&
-                    player.y + player.height >= plat.y && player.y + player.height - player.vy <= plat.y) {
-                    player.y = plat.y - player.height;
-                    player.vy = 0;
-                    player.grounded = true;
-                }
-            }
-
+            // Прыжок
             if (keys.jump && player.grounded) {
                 player.vy = -player.jumpForce;
                 player.grounded = false;
             }
-
-            camera.x = player.x - canvas.width / 3;
-            if (camera.x < 0) camera.x = 0;
         }
 
         function draw() {
+            // Чистим экран
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.save();
-            ctx.translate(-camera.x, 0);
 
-            for (let plat of platforms) {
-                ctx.fillStyle = plat.color;
-                ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
-            }
+            // Рисуем землю (зелёная трава)
+            ctx.fillStyle = '#2ed573';
+            ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
 
+            // Рисуем кубик (красивый оранжево-красный цвет)
             ctx.fillStyle = '#FF5733';
             ctx.fillRect(player.x, player.y, player.width, player.height);
 
+            // Рисуем глазки кубику, чтобы смотрел в сторону движения
             ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(player.x + (player.vx >= 0 ? 25 : 5), player.y + 10, 10, 10);
+            let eyeX = player.x + (player.vx >= 0 ? 30 : 5);
+            ctx.fillRect(eyeX, player.y + 12, 10, 10);
             ctx.fillStyle = '#000000';
-            ctx.fillRect(player.x + (player.vx >= 0 ? 30 : 5), player.y + 12, 5, 5);
-
-            ctx.restore();
+            let pupilX = player.x + (player.vx >= 0 ? 35 : 5);
+            ctx.fillRect(pupilX, player.y + 14, 5, 5);
         }
 
         function gameLoop() {
@@ -470,12 +416,11 @@
             loopId = requestAnimationFrame(gameLoop);
         }
 
-        // Переключение режимов
-        playBtn.addEventListener('click', () => {
-            robloxMenu.style.display = 'none';
+        // --- КНОПКИ ПЕРЕКЛЮЧЕНИЯ ЭКРАНОВ ---
+        startGameBtn.addEventListener('click', () => {
+            lobbyScreen.style.display = 'none';
             gameScreen.style.display = 'block';
             gameActive = true;
-            resizeCanvas();
             initLevel();
             gameLoop();
         });
@@ -484,11 +429,10 @@
             gameActive = false;
             cancelAnimationFrame(loopId);
             gameScreen.style.display = 'none';
-            robloxMenu.style.display = 'flex';
+            lobbyScreen.style.display = 'flex';
+            // Сброс управления при выходе
             keys.left = false; keys.right = false; keys.jump = false;
         });
     </script>
 </body>
 </html>
-
-```
