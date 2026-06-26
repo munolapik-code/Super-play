@@ -82,6 +82,11 @@
             position: relative;
         }
 
+        /* Превью для второй игры (сине-фиолетовый градиент тюрьмы) */
+        .game-preview.prison {
+            background: linear-gradient(135deg, #2c3e50 0%, #000000 100%);
+        }
+
         /* Маленький декоративный кубик на превью */
         .preview-cube {
             width: 45px;
@@ -89,6 +94,12 @@
             background-color: #FFFFFF;
             border-radius: 8px;
             box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+        }
+
+        /* Декоративная решетка для превью тюрьмы */
+        .preview-bars {
+            font-size: 50px;
+            color: rgba(255, 255, 255, 0.2);
         }
 
         /* Инфо внутри карточки */
@@ -126,6 +137,14 @@
             background-color: #006ED5;
         }
 
+        /* Кнопка для второй игры */
+        .play-btn.prison-btn {
+            background-color: #e74c3c;
+        }
+        .play-btn.prison-btn:hover {
+            background-color: #c0392b;
+        }
+
         /* --- 2. ЭКРАН ИГРЫ --- */
         #game-screen {
             display: none; /* Изначально скрыт */
@@ -136,7 +155,6 @@
 
         canvas {
             display: block;
-            background-color: #87CEEB; /* Небо */
             width: 100%;
             height: 100%;
         }
@@ -219,6 +237,7 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
@@ -238,7 +257,16 @@
                 </div>
             </div>
             
+            <div class="game-card">
+                <div class="game-preview prison">
+                    <i class="fa-solid fa-bars preview-bars"></i>
+                </div>
+                <div class="game-info">
+                    <h3 class="game-title">Побег из тюрьмы</h3>
+                    <button class="play-btn prison-btn" id="startPrisonBtn">Играть</button>
+                </div>
             </div>
+        </div>
     </div>
 
     <div id="game-screen">
@@ -246,7 +274,7 @@
             <i class="fa-solid fa-door-open"></i>
         </div>
 
-        <canvas id="gameCanvas"></canvas>
+        <div id="canvas-container" style="width:100%; height:100%;"></div>
 
         <div id="controls">
             <div class="joystick-zone" id="joystickZone">
@@ -260,95 +288,313 @@
         const lobbyScreen = document.getElementById('lobby-screen');
         const gameScreen = document.getElementById('game-screen');
         const startGameBtn = document.getElementById('startGameBtn');
+        const startPrisonBtn = document.getElementById('startPrisonBtn');
         const exitDoorBtn = document.getElementById('exitDoorBtn');
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+        const canvasContainer = document.getElementById('canvas-container');
 
+        let currentGameMode = ''; // 'cube' или 'prison'
         let gameActive = false;
         let loopId = null;
 
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+        // Элементы управления
+        const joystickZone = document.getElementById('joystickZone');
+        const stick = document.getElementById('stick');
+        const jumpBtn = document.getElementById('jumpBtn');
+
+        const keys = { left: false, right: false, forward: false, backward: false, jump: false };
+        let joystickActive = false;
+        let startX = 0;
+        let startY = 0;
+        let touchMoveX = 0;
+        let touchMoveZ = 0;
+
+        // --- ОБЩЕЕ РАСШИРЕНИЕ ЭКРАНА ---
+        function handleResize() {
+            if (!gameActive) return;
+            if (currentGameMode === 'cube' && canvas2D) {
+                canvas2D.width = window.innerWidth;
+                canvas2D.height = window.innerHeight;
+                groundY = canvas2D.height - 120;
+            } else if (currentGameMode === 'prison' && camera3D && renderer3D) {
+                camera3D.aspect = window.innerWidth / window.innerHeight;
+                camera3D.updateProjectionMatrix();
+                renderer3D.setSize(window.innerWidth, window.innerHeight);
+            }
         }
-        window.addEventListener('resize', () => {
-            if (gameActive) resizeCanvas();
-        });
+        window.addEventListener('resize', handleResize);
 
-        // Настройки физики, кубика и земли
-        const gravity = 0.6;
-        const player = {
-            x: 150,
-            y: 0,
-            width: 45,
-            height: 45,
-            vx: 0,
-            vy: 0,
-            speed: 5.5,
-            jumpForce: 13,
-            grounded: false
+        // ==========================================
+        // НАСТРОЙКИ И ПЕРЕМЕННЫЕ ИГРЫ 1: 2D КУБИК
+        // ==========================================
+        let canvas2D = null;
+        let ctx2D = null;
+        const gravity2D = 0.6;
+        const player2D = {
+            x: 150, y: 0, width: 45, height: 45,
+            vx: 0, vy: 0, speed: 5.5, jumpForce: 13, grounded: false
         };
-
         let groundY = 0;
 
-        function initLevel() {
-            resizeCanvas();
-            groundY = canvas.height - 120; // Высота земли под любой экран
-            player.x = canvas.width / 2 - player.width / 2; // Спавн по центру экрана
-            player.y = groundY - player.height;
-            player.vx = 0;
-            player.vy = 0;
+        function initCubeGame() {
+            canvasContainer.innerHTML = '<canvas id="gameCanvas"></canvas>';
+            canvas2D = document.getElementById('gameCanvas');
+            ctx2D = canvas2D.getContext('2d');
+            
+            canvas2D.width = window.innerWidth;
+            canvas2D.height = window.innerHeight;
+            groundY = canvas2D.height - 120;
+            player2D.x = canvas2D.width / 2 - player2D.width / 2;
+            player2D.y = groundY - player2D.height;
+            player2D.vx = 0;
+            player2D.vy = 0;
+            
+            // Сброс цвета кнопки под прыжок первой игры
+            jumpBtn.style.background = "rgba(0, 132, 255, 0.7)";
         }
 
-        // Управление кнопками клавиатуры (ПК)
-        const keys = { left: false, right: false, jump: false };
+        function updateCubeGame() {
+            if (keys.left) player2D.vx = -player2D.speed;
+            else if (keys.right) player2D.vx = player2D.speed;
+            else player2D.vx = 0;
 
+            player2D.vy += gravity2D;
+            player2D.x += player2D.vx;
+            player2D.y += player2D.vy;
+
+            if (player2D.x < 0) player2D.x = 0;
+            if (player2D.x + player2D.width > canvas2D.width) player2D.x = canvas2D.width - player2D.width;
+
+            if (player2D.y + player2D.height >= groundY) {
+                player2D.y = groundY - player2D.height;
+                player2D.vy = 0;
+                player2D.grounded = true;
+            } else {
+                player2D.grounded = false;
+            }
+
+            if (keys.jump && player2D.grounded) {
+                player2D.vy = -player2D.jumpForce;
+                player2D.grounded = false;
+            }
+        }
+
+        function drawCubeGame() {
+            ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
+            canvas2D.style.backgroundColor = '#87CEEB';
+
+            // Трава
+            ctx2D.fillStyle = '#2ed573';
+            ctx2D.fillRect(0, groundY, canvas2D.width, canvas2D.height - groundY);
+
+            // Кубик
+            ctx2D.fillStyle = '#FF5733';
+            ctx2D.fillRect(player2D.x, player2D.y, player2D.width, player2D.height);
+
+            // Глазки
+            ctx2D.fillStyle = '#FFFFFF';
+            let eyeX = player2D.x + (player2D.vx >= 0 ? 30 : 5);
+            ctx2D.fillRect(eyeX, player2D.y + 12, 10, 10);
+            ctx2D.fillStyle = '#000000';
+            let pupilX = player2D.x + (player2D.vx >= 0 ? 35 : 5);
+            ctx2D.fillRect(pupilX, player2D.y + 14, 5, 5);
+        }
+
+        // ==========================================
+        // НАСТРОЙКИ И ПЕРЕМЕННЫЕ ИГРЫ 2: 3D ТЮРЬМА (1 ЛИЦО)
+        // ==========================================
+        let scene3D, camera3D, renderer3D;
+        let platforms3D = [];
+        const player3D = {
+            pos: new THREE.Vector3(0, 2, 0),
+            vel: new THREE.Vector3(0, 0, 0),
+            speed: 0.12,
+            isGrounded: false,
+            jumpForce: 0.22
+        };
+        const gravity3D = 0.01;
+
+        function initPrisonGame() {
+            canvasContainer.innerHTML = ''; // Очищаем контейнер
+            
+            scene3D = new THREE.Scene();
+            scene3D.background = new THREE.Color(0x1a1c1e); // Темная атмосфера тюрьмы
+            scene3D.fog = new THREE.FogExp2(0x1a1c1e, 0.02);
+
+            camera3D = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer3D = new THREE.WebGLRenderer({ antialias: true });
+            renderer3D.setSize(window.innerWidth, window.innerHeight);
+            canvasContainer.appendChild(renderer3D.domElement);
+
+            // Свет в тюрьме
+            const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+            scene3D.add(ambient);
+            const dirLight = new THREE.DirectionalLight(0x7ea2ff, 0.7); // Синеватый лунный свет
+            dirLight.position.set(10, 30, 10);
+            scene3D.add(dirLight);
+
+            // Сброс игрока
+            player3D.pos.set(0, 2, 0);
+            player3D.vel.set(0, 0, 0);
+            camera3D.position.copy(player3D.pos);
+
+            // Создание плит паркура (Тюремные бетонные плиты)
+            platforms3D = [];
+            const mat = new THREE.MeshStandardMaterial({ color: 0x4b535c, roughness: 0.8 }); // Серый бетон
+
+            // Старт
+            create3DPlatform(0, 0, 0, 5, 5, mat);
+
+            // Цепочка тюремного паркура
+            let nextZ = -6;
+            let nextX = 0;
+            for (let i = 0; i < 30; i++) {
+                nextX += (Math.random() - 0.5) * 4;
+                let nextY = (Math.random() - 0.2) * 1.2; 
+                create3DPlatform(nextX, nextY, nextZ, 2.5, 2.5, mat);
+                nextZ -= 7;
+            }
+
+            // Цвет кнопки прыжка под стиль тюрьмы
+            jumpBtn.style.background = "rgba(231, 76, 60, 0.8)";
+        }
+
+        function create3DPlatform(x, y, z, w, l, material) {
+            const geo = new THREE.BoxGeometry(w, 0.8, l);
+            const mesh = new THREE.Mesh(geo, material);
+            mesh.position.set(x, y, z);
+            scene3D.add(mesh);
+            
+            platforms3D.push({
+                minX: x - w/2, maxX: x + w/2,
+                minY: y + 0.4,
+                minZ: z - l/2, maxZ: z + l/2
+            });
+        }
+
+        function updatePrisonGame() {
+            // Движение кнопками ПК или мобильным джойстиком
+            let mz = 0;
+            let mx = 0;
+
+            if (keys.forward) mz = -1;
+            if (keys.backward) mz = 1;
+            if (keys.left) mx = -1;
+            if (keys.right) mx = 1;
+
+            // Если работает тач-джойстик
+            if (joystickActive) {
+                mx = touchMoveX;
+                mz = touchMoveZ;
+            }
+
+            player3D.pos.x += mx * player3D.speed;
+            player3D.pos.z += mz * player3D.speed;
+
+            // Физика падения
+            player3D.vel.y -= gravity3D;
+            player3D.pos.y += player3D.vel.y;
+
+            // Коллизии с блоками
+            player3D.isGrounded = false;
+            for (let i = 0; i < platforms3D.length; i++) {
+                let p = platforms3D[i];
+                if (player3D.pos.x >= p.minX && player3D.pos.x <= p.maxX &&
+                    player3D.pos.z >= p.minZ && player3D.pos.z <= p.maxZ) {
+                    
+                    if (player3D.pos.y <= p.minY + 1.0 && player3D.pos.y >= p.minY - 0.2 && player3D.vel.y <= 0) {
+                        player3D.pos.y = p.minY + 1.0;
+                        player3D.vel.y = 0;
+                        player3D.isGrounded = true;
+                        break;
+                    }
+                }
+            }
+
+            // СМЕРТЬ ПРИ ПАДЕНИИ -> ТЕЛЕПОРТ В НАЧАЛО ТЮРЬМЫ
+            if (player3D.pos.y < -15) {
+                player3D.pos.set(0, 2, 0);
+                player3D.vel.set(0, 0, 0);
+            }
+
+            // Камера в глазах кубика
+            camera3D.position.copy(player3D.pos);
+            camera3D.lookAt(player3D.pos.x, player3D.pos.y - 0.4, player3D.pos.z - 5);
+
+            if (keys.jump && player3D.isGrounded) {
+                player3D.vel.y = player3D.jumpForce;
+                player3D.isGrounded = false;
+            }
+        }
+
+        // ==========================================
+        // СИСТЕМА УПРАВЛЕНИЯ (ПК и ТЕЛЕФОНЫ)
+        // ==========================================
         window.addEventListener('keydown', (e) => {
             if (!gameActive) return;
+            // Управление для 2D кубика
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
             if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') keys.jump = true;
+
+            // Доп. клавиши ходьбы вперед-назад для 3D тюрьмы
+            if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = true;
+            if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.backward = true;
         });
 
         window.addEventListener('keyup', (e) => {
-            if (!gameActive) return;
             if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = false;
             if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
             if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') keys.jump = false;
+            
+            if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = false;
+            if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.backward = false;
         });
 
-        // Мобильный джойстик
-        const joystickZone = document.getElementById('joystickZone');
-        const stick = document.getElementById('stick');
-        let joystickActive = false;
-        let startX = 0;
-
+        // Работа универсального мобильного джойстика
         joystickZone.addEventListener('touchstart', (e) => {
             joystickActive = true;
             startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
         });
 
         joystickZone.addEventListener('touchmove', (e) => {
             if (!joystickActive) return;
             const diffX = e.touches[0].clientX - startX;
-            let maxDist = 35;
-            let moveX = Math.max(-maxDist, Math.min(maxDist, diffX));
-            stick.style.transform = `translateX(${moveX}px)`;
+            const diffY = e.touches[0].clientY - startY;
+            const maxDist = 35;
+            
+            const dist = Math.sqrt(diffX*diffX + diffY*diffY);
+            let moveX = diffX;
+            let moveY = diffY;
 
-            if (moveX > 8) { keys.right = true; keys.left = false; }
-            else if (moveX < -8) { keys.left = true; keys.right = false; }
-            else { keys.left = false; keys.right = false; }
+            if (dist > maxDist) {
+                moveX = (diffX / dist) * maxDist;
+                moveY = (diffY / dist) * maxDist;
+            }
+
+            // Визуальное смещение стика джойстика
+            stick.style.transform = `translate(${moveX}px, ${moveY}px)`;
+
+            if (currentGameMode === 'cube') {
+                // Логика влево-вправо для 2D игры
+                if (moveX > 8) { keys.right = true; keys.left = false; }
+                else if (moveX < -8) { keys.left = true; keys.right = false; }
+                else { keys.left = false; keys.right = false; }
+            } else if (currentGameMode === 'prison') {
+                // Свободный вектор движения для 3D паркура
+                touchMoveX = moveX / maxDist;
+                touchMoveZ = moveY / maxDist;
+            }
         });
 
         joystickZone.addEventListener('touchend', () => {
             joystickActive = false;
-            stick.style.transform = 'translateX(0px)';
-            keys.left = false;
-            keys.right = false;
+            stick.style.transform = 'translate(0px, 0px)';
+            keys.left = false; keys.right = false;
+            touchMoveX = 0; touchMoveZ = 0;
         });
 
-        // Кнопка Прыжок для мобильных
-        const jumpBtn = document.getElementById('jumpBtn');
+        // Кнопка мобильного прыжка
         jumpBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
             keys.jump = true;
@@ -356,82 +602,55 @@
         jumpBtn.addEventListener('touchend', () => { keys.jump = false; });
 
 
-        // --- ОБНОВЛЕНИЕ И ОТРИСОВКА ---
-        function update() {
-            // Движение по горизонтали
-            if (keys.left) player.vx = -player.speed;
-            else if (keys.right) player.vx = player.speed;
-            else player.vx = 0;
-
-            // Гравитация и физика
-            player.vy += gravity;
-            player.x += player.vx;
-            player.y += player.vy;
-
-            // Ограничение движения по границам экрана экрана
-            if (player.x < 0) player.x = 0;
-            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
-
-            // Столкновение с землей
-            if (player.y + player.height >= groundY) {
-                player.y = groundY - player.height;
-                player.vy = 0;
-                player.grounded = true;
-            } else {
-                player.grounded = false;
-            }
-
-            // Прыжок
-            if (keys.jump && player.grounded) {
-                player.vy = -player.jumpForce;
-                player.grounded = false;
-            }
-        }
-
-        function draw() {
-            // Чистим экран
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Рисуем землю (зелёная трава)
-            ctx.fillStyle = '#2ed573';
-            ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
-
-            // Рисуем кубик (красивый оранжево-красный цвет)
-            ctx.fillStyle = '#FF5733';
-            ctx.fillRect(player.x, player.y, player.width, player.height);
-
-            // Рисуем глазки кубику, чтобы смотрел в сторону движения
-            ctx.fillStyle = '#FFFFFF';
-            let eyeX = player.x + (player.vx >= 0 ? 30 : 5);
-            ctx.fillRect(eyeX, player.y + 12, 10, 10);
-            ctx.fillStyle = '#000000';
-            let pupilX = player.x + (player.vx >= 0 ? 35 : 5);
-            ctx.fillRect(pupilX, player.y + 14, 5, 5);
-        }
-
-        function gameLoop() {
+        // ==========================================
+        // ИГРОВОЙ ЦИКЛ И ПЕРЕКЛЮЧЕНИЕ ЭКРАНОВ
+        // ==========================================
+        function masterLoop() {
             if (!gameActive) return;
-            update();
-            draw();
-            loopId = requestAnimationFrame(gameLoop);
+
+            if (currentGameMode === 'cube') {
+                updateCubeGame();
+                drawCubeGame();
+            } else if (currentGameMode === 'prison') {
+                updatePrisonGame();
+                renderer3D.render(scene3D, camera3D);
+            }
+
+            loopId = requestAnimationFrame(masterLoop);
         }
 
-        // --- КНОПКИ ПЕРЕКЛЮЧЕНИЯ ЭКРАНОВ ---
+        // Кнопка запуска 1 игры (Кубик)
         startGameBtn.addEventListener('click', () => {
             lobbyScreen.style.display = 'none';
             gameScreen.style.display = 'block';
+            currentGameMode = 'cube';
             gameActive = true;
-            initLevel();
-            gameLoop();
+            initCubeGame();
+            masterLoop();
         });
 
+        // Кнопка запуска 2 игры (Побег из тюрьмы)
+        startPrisonBtn.addEventListener('click', () => {
+            lobbyScreen.style.display = 'none';
+            gameScreen.style.display = 'block';
+            currentGameMode = 'prison';
+            gameActive = true;
+            initPrisonGame();
+            masterLoop();
+        });
+
+        // Выход обратно в главное меню
         exitDoorBtn.addEventListener('click', () => {
             gameActive = false;
             cancelAnimationFrame(loopId);
             gameScreen.style.display = 'none';
             lobbyScreen.style.display = 'flex';
-            // Сброс управления при выходе
-            keys.left = false; keys.right = false; keys.jump = false;
+            canvasContainer.innerHTML = ''; // Очистка памяти
+            
+            // Сброс всех нажатых кнопок
+            for (let k in keys) keys[k] = false;
+            joystickActive = false;
+            stick.style.transform = 'translate(0px, 0px)';
         });
     </script>
 </body>
