@@ -222,14 +222,12 @@
 </head>
 <body>
 
-    <!-- 1. ЭКРАН ЛОББИ -->
     <div id="lobby-screen">
         <div class="lobby-header">
             <span>Super</span> Play
         </div>
 
         <div class="games-grid">
-            <!-- Первая игра -->
             <div class="game-card">
                 <div class="game-preview">
                     <div class="preview-cube"></div>
@@ -240,7 +238,6 @@
                 </div>
             </div>
             
-            <!-- Вторая игра: Побег из тюрьмы -->
             <div class="game-card">
                 <div class="game-preview prison">
                     <i class="fa-solid fa-bars preview-bars"></i>
@@ -253,7 +250,6 @@
         </div>
     </div>
 
-    <!-- 2. ИГРОВОЙ ЭКРАН -->
     <div id="game-screen">
         <div class="exit-door-btn" id="exitDoorBtn" title="Выйти в меню">
             <i class="fa-solid fa-door-open"></i>
@@ -293,12 +289,17 @@
         let touchMoveX = 0;
         let touchMoveZ = 0;
 
-        // Переменные Roblox-поворота головы (в радианах)
+        // Переменные Roblox-поворота головы
         let cameraYaw = 0;   
         let cameraPitch = 0; 
         let isRotating = false;
         let previousMouseX = 0;
         let previousMouseY = 0;
+
+        // Переменные переключения лиц (дистанции камеры в стиле Roblox)
+        let cameraDistance = 4; // Дистанция по умолчанию (3-е лицо)
+        let targetDistance = 4; // Плавное приближение/отдаление
+        let startTouchDistance = 0; // Для жеста двумя пальцами на телефоне
 
         // Изменение размеров экрана
         function handleResize() {
@@ -386,10 +387,12 @@
         }
 
         // ==========================================
-        // ИГРА 2: 3D ТЮРЬМА (С ПОВОРОТОМ ГОЛОВЫ)
+        // ИГРА 2: 3D ТЮРЬМА (ОТ 1 И 3 ЛИЦА)
         // ==========================================
         let scene3D, camera3D, renderer3D;
         let platforms3D = [];
+        let playerMesh3D; // Визуальное 3D тело персонажа-кубика
+        
         const player3D = {
             pos: new THREE.Vector3(0, 2, 0),
             vel: new THREE.Vector3(0, 0, 0),
@@ -411,18 +414,25 @@
             renderer3D.setSize(window.innerWidth, window.innerHeight);
             canvasContainer.appendChild(renderer3D.domElement);
 
-            const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
             scene3D.add(ambient);
             const dirLight = new THREE.DirectionalLight(0x7ea2ff, 0.7); 
             dirLight.position.set(10, 30, 10);
             scene3D.add(dirLight);
+
+            // Создаем самого персонажа — Твой Красивый Кубик оранжевого цвета
+            const playerGeo = new THREE.BoxGeometry(1, 1, 1);
+            const playerMat = new THREE.MeshStandardMaterial({ color: 0xFF5733, roughness: 0.5 });
+            playerMesh3D = new THREE.Mesh(playerGeo, playerMat);
+            scene3D.add(playerMesh3D);
 
             // Сброс позиции и углов поворота головы
             player3D.pos.set(0, 2, 0);
             player3D.vel.set(0, 0, 0);
             cameraYaw = 0;
             cameraPitch = 0;
-            camera3D.position.copy(player3D.pos);
+            cameraDistance = 4;
+            targetDistance = 4;
 
             platforms3D = [];
             const mat = new THREE.MeshStandardMaterial({ color: 0x4b535c, roughness: 0.8 }); 
@@ -461,20 +471,19 @@
             if (keys.left) moveRight = -1;
             if (keys.right) moveRight = 1;
 
-            // Управление мобильным джойстиком
             if (joystickActive) {
                 moveRight = touchMoveX;
                 moveForward = -touchMoveZ; 
             }
 
-            // Вычисляем направление движения с учетом поворота головы (cameraYaw)
+            // Направление движения относительно взгляда камеры
             const frontVector = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
             const rightVector = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
 
             player3D.pos.addScaledVector(frontVector, moveForward * player3D.speed);
             player3D.pos.addScaledVector(rightVector, moveRight * player3D.speed);
 
-            // Физика и гравитация
+            // Физика
             player3D.vel.y -= gravity3D;
             player3D.pos.y += player3D.vel.y;
 
@@ -498,16 +507,31 @@
                 player3D.vel.set(0, 0, 0);
             }
 
-            // Привязка камеры к голове персонажа
-            camera3D.position.copy(player3D.pos);
+            // Обновляем позицию 3D кубика в мире
+            playerMesh3D.position.copy(player3D.pos);
+            // Поворачиваем кубик туда, куда направлен взгляд игрока
+            playerMesh3D.rotation.y = cameraYaw;
 
-            // Куда именно мы смотрим (Вычисление направления взгляда)
-            const target = new THREE.Vector3(0, 0, -1);
-            target.applyAxisAngle(new THREE.Vector3(1, 0, 0), cameraPitch);
-            target.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
-            target.add(player3D.pos);
-            
-            camera3D.lookAt(target);
+            // Плавное изменение дистанции камеры (эффект зума Roblox)
+            cameraDistance += (targetDistance - cameraDistance) * 0.1;
+
+            // Если камера в упоре (дистанция меньше 0.5) — скрываем тело кубика, чтобы это было чистое 1-е лицо
+            if (cameraDistance < 0.5) {
+                playerMesh3D.visible = false;
+            } else {
+                playerMesh3D.visible = true;
+            }
+
+            // Расчет позиции камеры на основе углов поворота и текущей дистанции
+            const offset = new THREE.Vector3(0, 0, 1);
+            offset.applyAxisAngle(new THREE.Vector3(1, 0, 0), cameraPitch);
+            offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
+            offset.multiplyScalar(cameraDistance);
+
+            // Камера смотрит немного выше центра кубика (на уровне глаз)
+            const headPos = player3D.pos.clone().add(new THREE.Vector3(0, 0.4, 0));
+            camera3D.position.copy(headPos).add(offset);
+            camera3D.lookAt(headPos);
 
             if (keys.jump && player3D.isGrounded) {
                 player3D.vel.y = player3D.jumpForce;
@@ -516,7 +540,7 @@
         }
 
         // ==========================================
-        // ОБРАБОТЧИКИ ПК КЛАВИАТУРЫ
+        // ОБРАБОТЧИКИ ПК КЛАВИАТУРЫ И КОЛЕСИКА
         // ==========================================
         window.addEventListener('keydown', (e) => {
             if (!gameActive) return;
@@ -535,6 +559,16 @@
             
             if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.forward = false;
             if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.backward = false;
+        });
+
+        // Roblox-зум колесиком мыши на ПК
+        window.addEventListener('wheel', (e) => {
+            if (!gameActive || currentGameMode !== 'prison') return;
+            if (e.deltaY > 0) {
+                targetDistance = Math.min(12, targetDistance + 1); // Отдаление (3-е лицо)
+            } else {
+                targetDistance = Math.max(0, targetDistance - 1);  // Приближение (1-е лицо)
+            }
         });
 
         // ==========================================
@@ -587,7 +621,7 @@
         jumpBtn.addEventListener('touchend', () => { keys.jump = false; });
 
         // ==========================================
-        // СИСТЕМА ROBLOX-ПОВОРОТА ГОЛОВЫ СВАЙПАМИ
+        // ROBLOX-СИСТЕМА: ПОВОРОТ И ЖЕСТЫ ТАЧЕЙ (ДЛЯ ТЕЛЕФОНОВ)
         // ==========================================
         window.addEventListener('mousedown', (e) => {
             if (e.target.closest('#controls') || e.target.closest('.exit-door-btn') || !gameActive || currentGameMode !== 'prison') return;
@@ -598,9 +632,19 @@
 
         window.addEventListener('touchstart', (e) => {
             if (e.target.closest('#controls') || e.target.closest('.exit-door-btn') || !gameActive || currentGameMode !== 'prison') return;
-            isRotating = true;
-            previousMouseX = e.touches[0].clientX;
-            previousMouseY = e.touches[0].clientY;
+            
+            // Если игрок коснулся экрана ДВУМЯ ПАЛЬЦАМИ — это жест зума (изменение лица)
+            if (e.touches.length === 2) {
+                isRotating = false;
+                startTouchDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+            } else if (e.touches.length === 1) {
+                isRotating = true;
+                previousMouseX = e.touches[0].clientX;
+                previousMouseY = e.touches[0].clientY;
+            }
         });
 
         window.addEventListener('mousemove', (e) => {
@@ -611,16 +655,35 @@
             cameraYaw -= deltaX * 0.005;   
             cameraPitch -= deltaY * 0.005; 
 
-            // Ограничение взгляда (чтобы нельзя было вывернуть голову назад)
-            cameraPitch = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, cameraPitch));
+            cameraPitch = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, cameraPitch));
 
             previousMouseX = e.clientX;
             previousMouseY = e.clientY;
         });
 
         window.addEventListener('touchmove', (e) => {
+            if (!gameActive || currentGameMode !== 'prison') return;
+
+            // Обработка щипка двумя пальцами (Зум камеры на телефоне)
+            if (e.touches.length === 2) {
+                const currentDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                const diff = startTouchDistance - currentDist;
+
+                if (diff > 10) {
+                    targetDistance = Math.min(12, targetDistance + 0.4); // Разведение пальцев — отдаление
+                    startTouchDistance = currentDist;
+                } else if (diff < -10) {
+                    targetDistance = Math.max(0, targetDistance - 0.4);  // Сведение пальцев — приближение
+                    startTouchDistance = currentDist;
+                }
+                return;
+            }
+
             if (!isRotating) return;
-            if (e.target.closest('#joystickZone')) return; // Джойстик не должен крутить камеру
+            if (e.target.closest('#joystickZone')) return; 
 
             const deltaX = e.touches[0].clientX - previousMouseX;
             const deltaY = e.touches[0].clientY - previousMouseY;
@@ -628,14 +691,17 @@
             cameraYaw -= deltaX * 0.008;   
             cameraPitch -= deltaY * 0.008;
 
-            cameraPitch = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, cameraPitch));
+            cameraPitch = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, cameraPitch));
 
             previousMouseX = e.touches[0].clientX;
             previousMouseY = e.touches[0].clientY;
         });
 
         window.addEventListener('mouseup', () => isRotating = false);
-        window.addEventListener('touchend', () => isRotating = false);
+        window.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) startTouchDistance = 0;
+            isRotating = false;
+        });
 
         // ==========================================
         // ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ
