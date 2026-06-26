@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Кубик-Путешественник</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #222;
+            overflow: hidden;
+            font-family: sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        canvas {
+            display: block;
+            background-color: #87CEEB; /* Голубое небо */
+        }
+
+        /* Сенсорная панель управления */
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 30px;
+            box-sizing: border-box;
+        }
+
+        /* Зона джойстика (слева) */
+        .joystick-zone {
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            position: relative;
+            touch-action: none;
+        }
+
+        .joystick-stick {
+            width: 50px;
+            height: 50px;
+            background: #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 35px;
+            left: 35px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        /* Кнопка прыжка (справа) */
+        .jump-btn {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.4);
+            border: 3px solid #fff;
+            border-radius: 50%;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .jump-btn:active {
+            background: rgba(255, 255, 255, 0.7);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="controls">
+        <div class="joystick-zone" id="joystickZone">
+            <div class="joystick-stick" id="stick"></div>
+        </div>
+        <div class="jump-btn" id="jumpBtn">ВВЕРХ</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Подгоняем размер экрана
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Параметры мира
+        const gravity = 0.6;
+        const groundY = canvas.height - 100;
+
+        // Игрок (Кубик)
+        const player = {
+            x: 100,
+            y: groundY - 40,
+            width: 40,
+            height: 40,
+            color: '#FF5733',
+            vx: 0,
+            vy: 0,
+            speed: 5,
+            jumpForce: 12,
+            grounded: false
+        };
+
+        // Камера (для длинной карты)
+        const camera = {
+            x: 0
+        };
+
+        // Длинная карта: массив объектов (земля, платформы, препятствия)
+        // Координаты X могут быть очень большими
+        const platforms = [
+            { x: 0, y: canvas.height - 80, width: 5000, height: 80, color: '#2ed573' }, // Основная земля
+            { x: 400, y: canvas.height - 200, width: 150, height: 20, color: '#ffa502' }, // Платформы
+            { x: 700, y: canvas.height - 280, width: 150, height: 20, color: '#ffa502' },
+            { x: 1000, y: canvas.height - 220, width: 200, height: 20, color: '#ffa502' },
+            { x: 1400, y: canvas.height - 180, width: 120, height: 20, color: '#ffa502' },
+        ];
+
+        // Состояние управления
+        const keys = { left: false, right: false, jump: false };
+
+        // --- УПРАВЛЕНИЕ КЛАВИАТУРОЙ (для ПК) ---
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
+            if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') keys.jump = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = false;
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
+            if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') keys.jump = false;
+        });
+
+        // --- СЕНСОРНОЕ УПРАВЛЕНИЕ (ДЖОЙСТИК) ---
+        const joystickZone = document.getElementById('joystickZone');
+        const stick = document.getElementById('stick');
+        let joystickActive = false;
+        let startX = 0;
+
+        joystickZone.addEventListener('touchstart', (e) => {
+            joystickActive = true;
+            const touch = e.touches[0];
+            startX = touch.clientX;
+        });
+
+        joystickZone.addEventListener('touchmove', (e) => {
+            if (!joystickActive) return;
+            const touch = e.touches[0];
+            const diffX = touch.clientX - startX;
+
+            // Ограничиваем движение визуального стика
+            let maxDist = 35;
+            let moveX = Math.max(-maxDist, Math.min(maxDist, diffX));
+            stick.style.transform = `translateX(${moveX}px)`;
+
+            // Задаем движение игроку в зависимости от наклона джойстика
+            if (moveX > 10) {
+                keys.right = true;
+                keys.left = false;
+            } else if (moveX < -10) {
+                keys.left = true;
+                keys.right = false;
+            } else {
+                keys.left = false;
+                keys.right = false;
+            }
+        });
+
+        joystickZone.addEventListener('touchend', () => {
+            joystickActive = false;
+            stick.style.transform = 'translateX(0px)';
+            keys.left = false;
+            keys.right = false;
+        });
+
+        // Кнопка прыжка
+        const jumpBtn = document.getElementById('jumpBtn');
+        jumpBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            keys.jump = true;
+        });
+        jumpBtn.addEventListener('touchend', () => {
+            keys.jump = false;
+        });
+
+
+        // --- ИГРОВОЙ ЦИКЛ ---
+        function update() {
+            // Движение по оси X
+            if (keys.left) player.vx = -player.speed;
+            else if (keys.right) player.vx = player.speed;
+            else player.vx = 0;
+
+            // Применение гравитации
+            player.vy += gravity;
+
+            // Обновление позиций
+            player.x += player.vx;
+            player.y += player.vy;
+
+            // Ограничение, чтобы не падать сквозь экран (на всякий случай)
+            if (player.y > canvas.height) {
+                player.y = canvas.height - 200;
+                player.x = 100;
+                player.vy = 0;
+            }
+
+            // Проверка столкновений с платформами и землей
+            player.grounded = false;
+            for (let plat of platforms) {
+                // Проверяем пересечение по X и по Y
+                if (player.x + player.width > plat.x && 
+                    player.x < plat.x + plat.width &&
+                    player.y + player.height >= plat.y && 
+                    player.y + player.height - player.vy <= plat.y) {
+                    
+                    player.y = plat.y - player.height;
+                    player.vy = 0;
+                    player.grounded = true;
+                }
+            }
+
+            // Прыжок
+            if (keys.jump && player.grounded) {
+                player.vy = -player.jumpForce;
+                player.grounded = false;
+            }
+
+            // Камера следит за игроком (центрируется)
+            camera.x = player.x - canvas.width / 3;
+            if (camera.x < 0) camera.x = 0; // Не двигаем камеру левее начала карты
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            // Сдвигаем весь мир в зависимости от положения камеры
+            ctx.translate(-camera.x, 0);
+
+            // Рисуем платформы
+            for (let plat of platforms) {
+                ctx.fillStyle = plat.color;
+                ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+            }
+
+            // Рисуем игрока
+            ctx.fillStyle = player.color;
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+
+            // Рисуем глазки кубику, чтобы было видно куда он смотрит
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(player.x + (player.vx >= 0 ? 25 : 5), player.y + 10, 10, 10);
+            ctx.fillStyle = '#000';
+            ctx.fillRect(player.x + (player.vx >= 0 ? 30 : 5), player.y + 12, 5, 5);
+
+            ctx.restore();
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        loop();
+    </script>
+</body>
+</html>
