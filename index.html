@@ -78,10 +78,6 @@
             position: relative;
         }
 
-        .game-preview.prison {
-            background: linear-gradient(135deg, #2c3e50 0%, #000000 100%);
-        }
-
         .game-preview.brookhaven {
             background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
         }
@@ -94,7 +90,7 @@
             box-shadow: 0 8px 15px rgba(0,0,0,0.2);
         }
 
-        .preview-bars, .preview-house {
+        .preview-house {
             font-size: 50px;
             color: rgba(255, 255, 255, 0.2);
         }
@@ -226,14 +222,12 @@
 </head>
 <body>
 
-    <!-- 1. ЭКРАН ЛОББИ -->
     <div id="lobby-screen">
         <div class="lobby-header">
             <span>Super</span> Play
         </div>
 
         <div class="games-grid">
-            <!-- Первая игра -->
             <div class="game-card">
                 <div class="game-preview">
                     <div class="preview-cube"></div>
@@ -243,19 +237,7 @@
                     <button class="play-btn" id="startGameBtn">Играть</button>
                 </div>
             </div>
-            
-            <!-- Вторая игра: Побег из тюрьмы -->
-            <div class="game-card">
-                <div class="game-preview prison">
-                    <i class="fa-solid fa-bars preview-bars"></i>
-                </div>
-                <div class="game-info">
-                    <h3 class="game-title">Побег из тюрьмы 2</h3>
-                    <button class="play-btn" id="startPrisonBtn">Играть</button>
-                </div>
-            </div>
 
-            <!-- Третья игра: Брукхейвен -->
             <div class="game-card">
                 <div class="game-preview brookhaven">
                     <i class="fa-solid fa-house preview-house"></i>
@@ -268,7 +250,6 @@
         </div>
     </div>
 
-    <!-- 2. ИГРОВОЙ ЭКРАН -->
     <div id="game-screen">
         <div class="exit-door-btn" id="exitDoorBtn" title="Выйти в меню">
             <i class="fa-solid fa-door-open"></i>
@@ -288,7 +269,6 @@
         const lobbyScreen = document.getElementById('lobby-screen');
         const gameScreen = document.getElementById('game-screen');
         const startGameBtn = document.getElementById('startGameBtn');
-        const startPrisonBtn = document.getElementById('startPrisonBtn');
         const startBrookhavenBtn = document.getElementById('startBrookhavenBtn');
         const exitDoorBtn = document.getElementById('exitDoorBtn');
         const canvasContainer = document.getElementById('canvas-container');
@@ -317,8 +297,8 @@
         let previousMouseY = 0;
 
         // Переменные переключения лиц
-        let cameraDistance = 4; 
-        let targetDistance = 4; 
+        let cameraDistance = 5; 
+        let targetDistance = 5; 
         let startTouchDistance = 0; 
 
         // Изменение размеров экрана
@@ -328,7 +308,7 @@
                 canvas2D.width = window.innerWidth;
                 canvas2D.height = window.innerHeight;
                 groundY = canvas2D.height - 120;
-            } else if ((currentGameMode === 'prison' || currentGameMode === 'brookhaven') && camera3D && renderer3D) {
+            } else if (currentGameMode === 'brookhaven' && camera3D && renderer3D) {
                 camera3D.aspect = window.innerWidth / window.innerHeight;
                 camera3D.updateProjectionMatrix();
                 renderer3D.setSize(window.innerWidth, window.innerHeight);
@@ -407,14 +387,14 @@
         }
 
         // ==========================================
-        // ОБЩИЙ 3D ДВИЖОК ДЛЯ ТЮРЬМЫ И БРУКХЕЙВЕНА
+        // 3D ДВИЖОК ДЛЯ ИГРЫ БРУКХЕЙВЕН
         // ==========================================
         let scene3D, camera3D, renderer3D;
         let platforms3D = [];
-        let playerMesh3D; 
+        let playerCharacter3D; // Группа, содержащая части тела человечка
         
         const player3D = {
-            pos: new THREE.Vector3(0, 2, 0),
+            pos: new THREE.Vector3(0, 2, 5),
             vel: new THREE.Vector3(0, 0, 0),
             speed: 0.12,
             isGrounded: false,
@@ -435,100 +415,57 @@
             });
         }
 
-        // ИГРА 2: ТЮРЬМА (НОЧЬ)
-        function initPrisonGame() {
-            canvasContainer.innerHTML = ''; 
-            scene3D = new THREE.Scene();
-            scene3D.background = new THREE.Color(0x1a1c1e); 
-            scene3D.fog = new THREE.FogExp2(0x1a1c1e, 0.02);
-
-            camera3D = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            renderer3D = new THREE.WebGLRenderer({ antialias: true });
-            renderer3D.setSize(window.innerWidth, window.innerHeight);
-            canvasContainer.appendChild(renderer3D.domElement);
-
-            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
-            scene3D.add(ambient);
-            const dirLight = new THREE.DirectionalLight(0x7ea2ff, 0.7); 
-            dirLight.position.set(10, 30, 10);
-            scene3D.add(dirLight);
-
-            initPlayer3D();
-
-            platforms3D = [];
-            const mat = new THREE.MeshStandardMaterial({ color: 0x4b535c, roughness: 0.8 }); 
-
-            create3DPlatform(0, 0, 0, 5, 0.8, 5, mat);
-
-            let nextZ = -6;
-            let nextX = 0;
-            for (let i = 0; i < 30; i++) {
-                nextX += (Math.random() - 0.5) * 4;
-                let nextY = (Math.random() - 0.2) * 1.2; 
-                create3DPlatform(nextX, nextY, nextZ, 2.5, 0.8, 2.5, mat);
-                nextZ -= 7;
-            }
-        }
-
-        // ИГРА 3: БРУКХЕЙВЕН (ДЕНЬ И 6 ДВУХЭТАЖНЫХ ДОМОВ)
         function initBrookhavenGame() {
             canvasContainer.innerHTML = ''; 
             scene3D = new THREE.Scene();
-            scene3D.background = new THREE.Color(0x87CEEB); // Яркое голубое небо дня!
+            scene3D.background = new THREE.Color(0x87CEEB); // Яркое дневное небо
 
             camera3D = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             renderer3D = new THREE.WebGLRenderer({ antialias: true });
             renderer3D.setSize(window.innerWidth, window.innerHeight);
             canvasContainer.appendChild(renderer3D.domElement);
 
-            // Дневной яркий свет
             const ambient = new THREE.AmbientLight(0xffffff, 0.7);
             scene3D.add(ambient);
             const sunLight = new THREE.DirectionalLight(0xffffff, 0.9); 
             sunLight.position.set(20, 40, 20);
             scene3D.add(sunLight);
 
-            initPlayer3D();
+            initRobloxCharacter();
             platforms3D = [];
 
-            // Большая зеленая земля Брукхейвена
+            // Большая зеленая земля
             const groundMat = new THREE.MeshStandardMaterial({ color: 0x55aa44, roughness: 0.9 });
             create3DPlatform(0, -0.4, 0, 120, 0.8, 120, groundMat);
 
-            // Настройки для 6 домов
+            // Позиции для 6 домов Брукхейвена
             const housePositions = [
                 {x: -15, z: -15}, {x: 15, z: -15},
                 {x: -25, z: -40}, {x: 25, z: -40},
                 {x: -15, z: -65}, {x: 15, z: -65}
             ];
 
-            const wallMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5 }); // Светлые стены
-            const roofMat = new THREE.MeshStandardMaterial({ color: 0xcc4444, roughness: 0.5 }); // Красная крыша
-            const floorMat = new THREE.MeshStandardMaterial({ color: 0xaa7744, roughness: 0.7 }); // Деревянный пол 2 этажа
-            const stairsMat = new THREE.MeshStandardMaterial({ color: 0x0084FF, roughness: 0.6 }); // Синяя лестница
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5 }); 
+            const roofMat = new THREE.MeshStandardMaterial({ color: 0xcc4444, roughness: 0.5 }); 
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0xaa7744, roughness: 0.7 }); 
+            const stairsMat = new THREE.MeshStandardMaterial({ color: 0x0084FF, roughness: 0.6 }); 
 
-            // Строим 6 двухэтажных домов
+            // Строим дома
             housePositions.forEach((pos) => {
                 let hX = pos.x;
                 let hZ = pos.z;
 
-                // Задняя стена
                 create3DPlatform(hX, 3.5, hZ - 5, 10, 7, 0.5, wallMat);
-                // Левая стена
                 create3DPlatform(hX - 5, 3.5, hZ, 0.5, 7, 10, wallMat);
-                // Правая стена
                 create3DPlatform(hX + 5, 3.5, hZ, 0.5, 7, 10, wallMat);
                 
-                // Передняя стена с ДВЕРНЫМ ПРОЕМОМ по центру
-                create3DPlatform(hX - 3.25, 3.5, hZ + 5, 3.5, 7, 0.5, wallMat); // Левая часть переда
-                create3DPlatform(hX + 3.25, 3.5, hZ + 5, 3.5, 7, 0.5, wallMat); // Правая часть переда
-                create3DPlatform(hX, 5.5, hZ + 5, 3, 3, 0.5, wallMat); // Верхняя часть над дверью
+                create3DPlatform(hX - 3.25, 3.5, hZ + 5, 3.5, 7, 0.5, wallMat); 
+                create3DPlatform(hX + 3.25, 3.5, hZ + 5, 3.5, 7, 0.5, wallMat); 
+                create3DPlatform(hX, 5.5, hZ + 5, 3, 3, 0.5, wallMat); 
 
-                // ПОЛ ВТОРОГО ЭТАЖА (оставляем сзади место для лестницы 3x3 метра)
                 create3DPlatform(hX, 3.3, hZ + 1.5, 9.5, 0.3, 6.5, floorMat);
 
-                // УДОБНАЯ СТУПЕНЧАТАЯ ЛЕСТНИЦА НА 2 ЭТАЖ
-                // 5 блоков-ступенек, по которым кубик может запрыгнуть или зайти
+                // Лестницы
                 for (let step = 0; step < 5; step++) {
                     let sW = 2.5; 
                     let sH = 0.6;
@@ -539,18 +476,55 @@
                     create3DPlatform(sX, sY, sZ, sW, sH, sL, stairsMat);
                 }
 
-                // КРЫША ДОМА
                 create3DPlatform(hX, 7.3, hZ, 11, 0.5, 11, roofMat);
             });
         }
 
-        function initPlayer3D() {
-            const playerGeo = new THREE.BoxGeometry(1, 1, 1);
-            const playerMat = new THREE.MeshStandardMaterial({ color: 0xFF5733, roughness: 0.5 });
-            playerMesh3D = new THREE.Mesh(playerGeo, playerMat);
-            scene3D.add(playerMesh3D);
+        // СОЗДАНИЕ СЛИТНОГО РОБЛОКС-ЧЕЛОВЕЧКА
+        function initRobloxCharacter() {
+            playerCharacter3D = new THREE.Group();
 
-            player3D.pos.set(0, 2, 5);
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xffdbac, roughness: 0.6 }); // Голова, руки
+            const torsoMat = new THREE.MeshStandardMaterial({ color: 0x0084FF, roughness: 0.5 }); // Синяя футболка
+            const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1c1e22, roughness: 0.5 }); // Темные штаны
+
+            // Туловище
+            const torsoGeo = new THREE.BoxGeometry(0.8, 1.0, 0.4);
+            const torsoMesh = new THREE.Mesh(torsoGeo, torsoMat);
+            torsoMesh.position.y = 0.9;
+            playerCharacter3D.add(torsoMesh);
+
+            // Голова
+            const headGeo = new THREE.BoxGeometry(0.45, 0.45, 0.45);
+            const headMesh = new THREE.Mesh(headGeo, skinMat);
+            headMesh.position.y = 1.65;
+            playerCharacter3D.add(headMesh);
+
+            // Левая нога
+            const legGeo = new THREE.BoxGeometry(0.35, 0.8, 0.35);
+            const leftLeg = new THREE.Mesh(legGeo, pantsMat);
+            leftLeg.position.set(-0.22, 0.4, 0);
+            playerCharacter3D.add(leftLeg);
+
+            // Правая нога
+            const rightLeg = leftLeg.clone();
+            rightLeg.position.x = 0.22;
+            playerCharacter3D.add(rightLeg);
+
+            // Левая рука
+            const armGeo = new THREE.BoxGeometry(0.3, 0.9, 0.3);
+            const leftArm = new THREE.Mesh(armGeo, skinMat);
+            leftArm.position.set(-0.58, 0.95, 0);
+            playerCharacter3D.add(leftArm);
+
+            // Правая рука
+            const rightArm = leftArm.clone();
+            rightArm.position.x = 0.58;
+            playerCharacter3D.add(rightArm);
+
+            scene3D.add(playerCharacter3D);
+
+            player3D.pos.set(0, 0.1, 5);
             player3D.vel.set(0, 0, 0);
             cameraYaw = 0;
             cameraPitch = 0;
@@ -587,8 +561,8 @@
                 if (player3D.pos.x >= p.minX && player3D.pos.x <= p.maxX &&
                     player3D.pos.z >= p.minZ && player3D.pos.z <= p.maxZ) {
                     
-                    if (player3D.pos.y <= p.minY + 1.0 && player3D.pos.y >= p.minY - 0.2 && player3D.vel.y <= 0) {
-                        player3D.pos.y = p.minY + 1.0;
+                    if (player3D.pos.y <= p.minY + 0.1 && player3D.pos.y >= p.minY - 0.2 && player3D.vel.y <= 0) {
+                        player3D.pos.y = p.minY;
                         player3D.vel.y = 0;
                         player3D.isGrounded = true;
                         break;
@@ -596,21 +570,22 @@
                 }
             }
 
-            // Если упал под карту Брукхейвена или Тюрьмы — респавн
             if (player3D.pos.y < -15) {
                 player3D.pos.set(0, 2, 5);
                 player3D.vel.set(0, 0, 0);
             }
 
-            playerMesh3D.position.copy(player3D.pos);
-            playerMesh3D.rotation.y = cameraYaw;
+            // Перемещение и поворот всего тела человечка
+            playerCharacter3D.position.copy(player3D.pos);
+            playerCharacter3D.rotation.y = cameraYaw;
 
             cameraDistance += (targetDistance - cameraDistance) * 0.1;
 
-            if (cameraDistance < 0.5) {
-                playerMesh3D.visible = false;
+            // Если камера совсем близко — скрываем человечка, чтобы не мешал обзору глаз
+            if (cameraDistance < 0.6) {
+                playerCharacter3D.visible = false;
             } else {
-                playerMesh3D.visible = true;
+                playerCharacter3D.visible = true;
             }
 
             const offset = new THREE.Vector3(0, 0, 1);
@@ -618,7 +593,8 @@
             offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
             offset.multiplyScalar(cameraDistance);
 
-            const headPos = player3D.pos.clone().add(new THREE.Vector3(0, 0.4, 0));
+            // Камера смотрит на уровень головы (примерно 1.6 метра от земли)
+            const headPos = player3D.pos.clone().add(new THREE.Vector3(0, 1.6, 0));
             camera3D.position.copy(headPos).add(offset);
             camera3D.lookAt(headPos);
 
@@ -629,7 +605,7 @@
         }
 
         // ==========================================
-        // ОБРАБОТЧИКИ УПРАВЛЕНИЯ (ПК И МОБИЛЬНЫЕ)
+        // ОБРАБОТЧИКИ ПК КЛАВИАТУРЫ И СЕНСОРА
         // ==========================================
         window.addEventListener('keydown', (e) => {
             if (!gameActive) return;
@@ -649,7 +625,7 @@
         });
 
         window.addEventListener('wheel', (e) => {
-            if (!gameActive || (currentGameMode !== 'prison' && currentGameMode !== 'brookhaven')) return;
+            if (!gameActive || currentGameMode !== 'brookhaven') return;
             if (e.deltaY > 0) targetDistance = Math.min(15, targetDistance + 1); 
             else targetDistance = Math.max(0, targetDistance - 1);  
         });
@@ -701,14 +677,14 @@
         jumpBtn.addEventListener('touchend', () => { keys.jump = false; });
 
         window.addEventListener('mousedown', (e) => {
-            if (e.target.closest('#controls') || e.target.closest('.exit-door-btn') || !gameActive || (currentGameMode !== 'prison' && currentGameMode !== 'brookhaven')) return;
+            if (e.target.closest('#controls') || e.target.closest('.exit-door-btn') || !gameActive || currentGameMode !== 'brookhaven') return;
             isRotating = true;
             previousMouseX = e.clientX;
             previousMouseY = e.clientY;
         });
 
         window.addEventListener('touchstart', (e) => {
-            if (e.target.closest('#controls') || e.target.closest('.exit-door-btn') || !gameActive || (currentGameMode !== 'prison' && currentGameMode !== 'brookhaven')) return;
+            if (e.target.closest('#controls') || e.target.closest('.exit-door-btn') || !gameActive || currentGameMode !== 'brookhaven') return;
             
             if (e.touches.length === 2) {
                 isRotating = false;
@@ -737,7 +713,7 @@
         });
 
         window.addEventListener('touchmove', (e) => {
-            if (!gameActive || (currentGameMode !== 'prison' && currentGameMode !== 'brookhaven')) return;
+            if (!gameActive || currentGameMode !== 'brookhaven') return;
 
             if (e.touches.length === 2) {
                 const currentDist = Math.hypot(
@@ -785,7 +761,7 @@
             if (currentGameMode === 'cube') {
                 updateCubeGame();
                 drawCubeGame();
-            } else if (currentGameMode === 'prison' || currentGameMode === 'brookhaven') {
+            } else if (currentGameMode === 'brookhaven') {
                 update3DPhysics();
                 renderer3D.render(scene3D, camera3D);
             }
@@ -794,20 +770,12 @@
         }
 
         startGameBtn.addEventListener('click', () => {
+            lobbyScreen.style.with = 'none';
             lobbyScreen.style.display = 'none';
             gameScreen.style.display = 'block';
             currentGameMode = 'cube';
             gameActive = true;
             initCubeGame();
-            masterLoop();
-        });
-
-        startPrisonBtn.addEventListener('click', () => {
-            lobbyScreen.style.display = 'none';
-            gameScreen.style.display = 'block';
-            currentGameMode = 'prison';
-            gameActive = true;
-            initPrisonGame();
             masterLoop();
         });
 
