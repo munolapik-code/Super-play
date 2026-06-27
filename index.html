@@ -391,7 +391,7 @@
         // ==========================================
         let scene3D, camera3D, renderer3D;
         let platforms3D = [];
-        let playerCharacter3D; // Группа, содержащая части тела человечка
+        let playerCharacter3D; 
         
         const player3D = {
             pos: new THREE.Vector3(0, 2, 5),
@@ -418,7 +418,7 @@
         function initBrookhavenGame() {
             canvasContainer.innerHTML = ''; 
             scene3D = new THREE.Scene();
-            scene3D.background = new THREE.Color(0x87CEEB); // Яркое дневное небо
+            scene3D.background = new THREE.Color(0x87CEEB); 
 
             camera3D = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             renderer3D = new THREE.WebGLRenderer({ antialias: true });
@@ -434,11 +434,9 @@
             initRobloxCharacter();
             platforms3D = [];
 
-            // Большая зеленая земля
             const groundMat = new THREE.MeshStandardMaterial({ color: 0x55aa44, roughness: 0.9 });
             create3DPlatform(0, -0.4, 0, 120, 0.8, 120, groundMat);
 
-            // Позиции для 6 домов Брукхейвена
             const housePositions = [
                 {x: -15, z: -15}, {x: 15, z: -15},
                 {x: -25, z: -40}, {x: 25, z: -40},
@@ -450,7 +448,6 @@
             const floorMat = new THREE.MeshStandardMaterial({ color: 0xaa7744, roughness: 0.7 }); 
             const stairsMat = new THREE.MeshStandardMaterial({ color: 0x0084FF, roughness: 0.6 }); 
 
-            // Строим дома
             housePositions.forEach((pos) => {
                 let hX = pos.x;
                 let hZ = pos.z;
@@ -465,7 +462,6 @@
 
                 create3DPlatform(hX, 3.3, hZ + 1.5, 9.5, 0.3, 6.5, floorMat);
 
-                // Лестницы
                 for (let step = 0; step < 5; step++) {
                     let sW = 2.5; 
                     let sH = 0.6;
@@ -480,44 +476,37 @@
             });
         }
 
-        // СОЗДАНИЕ СЛИТНОГО РОБЛОКС-ЧЕЛОВЕЧКА
         function initRobloxCharacter() {
             playerCharacter3D = new THREE.Group();
 
-            const skinMat = new THREE.MeshStandardMaterial({ color: 0xffdbac, roughness: 0.6 }); // Голова, руки
-            const torsoMat = new THREE.MeshStandardMaterial({ color: 0x0084FF, roughness: 0.5 }); // Синяя футболка
-            const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1c1e22, roughness: 0.5 }); // Темные штаны
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xffdbac, roughness: 0.6 }); 
+            const torsoMat = new THREE.MeshStandardMaterial({ color: 0x0084FF, roughness: 0.5 }); 
+            const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1c1e22, roughness: 0.5 }); 
 
-            // Туловище
             const torsoGeo = new THREE.BoxGeometry(0.8, 1.0, 0.4);
             const torsoMesh = new THREE.Mesh(torsoGeo, torsoMat);
             torsoMesh.position.y = 0.9;
             playerCharacter3D.add(torsoMesh);
 
-            // Голова
             const headGeo = new THREE.BoxGeometry(0.45, 0.45, 0.45);
             const headMesh = new THREE.Mesh(headGeo, skinMat);
             headMesh.position.y = 1.65;
             playerCharacter3D.add(headMesh);
 
-            // Левая нога
             const legGeo = new THREE.BoxGeometry(0.35, 0.8, 0.35);
             const leftLeg = new THREE.Mesh(legGeo, pantsMat);
             leftLeg.position.set(-0.22, 0.4, 0);
             playerCharacter3D.add(leftLeg);
 
-            // Правая нога
             const rightLeg = leftLeg.clone();
             rightLeg.position.x = 0.22;
             playerCharacter3D.add(rightLeg);
 
-            // Левая рука
             const armGeo = new THREE.BoxGeometry(0.3, 0.9, 0.3);
             const leftArm = new THREE.Mesh(armGeo, skinMat);
             leftArm.position.set(-0.58, 0.95, 0);
             playerCharacter3D.add(leftArm);
 
-            // Правая рука
             const rightArm = leftArm.clone();
             rightArm.position.x = 0.58;
             playerCharacter3D.add(rightArm);
@@ -575,13 +564,11 @@
                 player3D.vel.set(0, 0, 0);
             }
 
-            // Перемещение и поворот всего тела человечка
             playerCharacter3D.position.copy(player3D.pos);
             playerCharacter3D.rotation.y = cameraYaw;
 
             cameraDistance += (targetDistance - cameraDistance) * 0.1;
 
-            // Если камера совсем близко — скрываем человечка, чтобы не мешал обзору глаз
             if (cameraDistance < 0.6) {
                 playerCharacter3D.visible = false;
             } else {
@@ -593,7 +580,6 @@
             offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
             offset.multiplyScalar(cameraDistance);
 
-            // Камера смотрит на уровень головы (примерно 1.6 метра от земли)
             const headPos = player3D.pos.clone().add(new THREE.Vector3(0, 1.6, 0));
             camera3D.position.copy(headPos).add(offset);
             camera3D.lookAt(headPos);
@@ -770,7 +756,6 @@
         }
 
         startGameBtn.addEventListener('click', () => {
-            lobbyScreen.style.with = 'none';
             lobbyScreen.style.display = 'none';
             gameScreen.style.display = 'block';
             currentGameMode = 'cube';
